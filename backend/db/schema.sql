@@ -21,12 +21,17 @@ CREATE TABLE IF NOT EXISTS ingredients (
   abv      REAL NOT NULL DEFAULT 0     -- percent: 40 for gin, 0 for lime juice
 );
 
--- A drink = one VERSION in a convergence lineage. Only POURED drinks are stored.
--- Both classic and generated drinks live here; `source` distinguishes them.
--- Root (parent_drink_id IS NULL) = the drink as first poured.
--- Child = an in-glass additive fix. (No `phase` column: role is implicit in lineage.)
--- The classics MENU is NOT in the DB — it's a seed file (data/classics.js);
--- picking a classic writes its recipe into this table + recipe_ingredients at pour.
+-- Holds all drinks. A drink is one of two kinds, set by `source`:
+--   'classic'   — a known recipe from the seed file (data/classics.js)
+--   'generated' — composed by the LLM from a flavor brief
+--
+-- A drink is only written to this table once it's POURED. While the host is still
+-- tweaking a draft ("make it less sweet"), the app regenerates it in memory and
+-- nothing is saved — only pouring commits a drink here.
+--
+-- Every drink is one VERSION in a convergence lineage, tracked by parent_drink_id:
+--   root  (parent_drink_id IS NULL) = the drink as first poured
+--   child = an in-glass additive fix of its parent
 CREATE TABLE IF NOT EXISTS drinks (
   id              INTEGER PRIMARY KEY,
   parent_drink_id INTEGER REFERENCES drinks(id),             -- NULL = root (as poured); else the predecessor version
@@ -38,7 +43,7 @@ CREATE TABLE IF NOT EXISTS drinks (
   method          TEXT,                                      -- 'stirred'|'shaken'|'built'|'none' (drives dilution/ABV)
   steps           TEXT,                                      -- blob: ordered instructions
   abv             REAL,                                      -- computed at pour, per version
-  is_final        INTEGER NOT NULL DEFAULT 0,                -- 1 = dialed-in final version
+  is_final        INTEGER NOT NULL DEFAULT 0,                -- 1 = dialed-in final version (end of convergence)
   created_at      TEXT DEFAULT (datetime('now'))
 );
 
@@ -53,5 +58,5 @@ CREATE TABLE IF NOT EXISTS recipe_ingredients (
 );
 
 -- Indexes on the columns we actually filter by.
-CREATE INDEX IF NOT EXISTS idx_drinks_parent ON drinks(parent_drink_id);     -- walking a lineage
-CREATE INDEX IF NOT EXISTS idx_ri_drink      ON recipe_ingredients(drink_id); -- a drink's ingredients
+CREATE INDEX IF NOT EXISTS idx_drinks_parent ON drinks(parent_drink_id);     -- finds a parent drink's direct children
+CREATE INDEX IF NOT EXISTS idx_ri_drink      ON recipe_ingredients(drink_id); -- finds a drink's ingredients
