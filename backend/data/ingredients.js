@@ -11,7 +11,6 @@
 //   bitter    – bittering agent (bitters, amaro, Campari/Aperol)
 //   sparkling – lengthener with bubbles (soda, tonic, sparkling wine)
 //   aromatic  – non-alcoholic flavor/accent (juices, egg, saline, mint)
-//   garnish   – negligible volume (peel, cherry)
 
 export const INGREDIENTS = [
   // --- spirits (backbone) ---
@@ -49,6 +48,7 @@ export const INGREDIENTS = [
 
   // --- bitters / amari / aperitivo ---
   { name: 'angostura bitters',   category: 'bitter',    abv: 44 },
+  { name: 'aromatic bitters',    category: 'bitter',    abv: 44 }, // e.g. Bitter Truth aromatic
   { name: 'orange bitters',      category: 'bitter',    abv: 28 },
   { name: 'campari',             category: 'bitter',    abv: 24 },
   { name: 'aperol',              category: 'bitter',    abv: 11 },
@@ -61,6 +61,7 @@ export const INGREDIENTS = [
 
   // --- sweeteners (non-alcoholic) ---
   { name: 'simple syrup',        category: 'sweetener', abv: 0 },
+  { name: 'sugar',               category: 'sweetener', abv: 0 }, // granulated
   { name: 'demerara syrup',      category: 'sweetener', abv: 0 },
   { name: 'honey syrup',         category: 'sweetener', abv: 0 },
   { name: 'agave syrup',         category: 'sweetener', abv: 0 },
@@ -82,9 +83,4 @@ export const INGREDIENTS = [
   { name: 'saline solution',     category: 'aromatic',  abv: 0 },
   { name: 'mint',                category: 'aromatic',  abv: 0 },
 
-  // --- garnishes (negligible volume) ---
-  { name: 'lemon peel',          category: 'garnish',   abv: 0 },
-  { name: 'orange peel',         category: 'garnish',   abv: 0 },
-  { name: 'lime wheel',          category: 'garnish',   abv: 0 },
-  { name: 'cocktail cherry',     category: 'garnish',   abv: 0 },
 ];

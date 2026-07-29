@@ -2,14 +2,17 @@
 PRAGMA foreign_keys = ON;
 
 -- The 6 Cocktail Codex structural families ("the grammar" every drink is built on).
--- Holds each family's identity now; balance-rule columns (roles, ratios) are added
--- when encoded against the book (build step 5) — no fabricated ratios here yet.
+-- Each row holds the template's identity, its balance_rule (structure the LLM
+-- generates within + the validator checks), and its canonical recipe (classic recipe
+-- no modification). Both rule and recipe are stored as JSON text.
 CREATE TABLE IF NOT EXISTS templates (
   id             INTEGER PRIMARY KEY,
   name           TEXT NOT NULL UNIQUE,  -- stable key (used for FK): 'old_fashioned','martini','daiquiri','sidecar','highball','flip'
   display_name   TEXT NOT NULL,         -- display label (used for UI): 'Old Fashioned'
-  description    TEXT,                  -- what structurally defines this family
-  default_method TEXT                   -- typical prep: 'stirred'|'shaken'|'built'
+  description    TEXT,                  -- what structurally defines this template
+  default_method TEXT,                  -- typical prep: 'stirred'|'shaken'|'built'
+  balance_rule   TEXT,                  -- JSON: {core,required,forbidden,notes} — constrains generation + validator
+  canonical      TEXT                   -- JSON: {ingredients:[{name,amount,unit}],garnish,steps} — the classic recipe to pour
 );
 
 -- Curated ingredient palette. `abv` is calculated, not inferred by LLM.
@@ -36,7 +39,7 @@ CREATE TABLE IF NOT EXISTS drinks (
   id              INTEGER PRIMARY KEY,
   parent_drink_id INTEGER REFERENCES drinks(id),             -- NULL = root (as poured); else the predecessor version
   name            TEXT NOT NULL,                             -- the drink's name
-  template        TEXT NOT NULL REFERENCES templates(name),  -- the family this drink expresses (classic OR generated)
+  template        TEXT NOT NULL REFERENCES templates(name),  -- the template this drink expresses (classic OR generated)
   source          TEXT NOT NULL DEFAULT 'generated',         -- 'generated' | 'classic' — how the recipe was obtained
   correction      TEXT,                                      -- remark that produced THIS version (NULL for any root)
   requested       TEXT,                                      -- the host's flavor brief; NULL for classics (no brief — picked from menu)
