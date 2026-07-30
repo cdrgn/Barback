@@ -1,6 +1,6 @@
-// Seeds the ingredient palette into the DB. Run with `npm run db:seed`.
-// Idempotent: re-running UPDATES existing ingredients (by unique name),
-// so editing an ABV in data/ingredients.js and re-seeding just works.
+// Seeds the DB with the ingredient palette and the 6 root templates.
+// Run with `npm run db:seed`. Idempotent: re-running UPDATES existing rows
+// (by unique name), so editing data/*.js and re-seeding just works.
 import { fileURLToPath } from 'node:url';
 import { openDb } from './init.js';
 import { INGREDIENTS } from '../data/ingredients.js';
@@ -16,8 +16,8 @@ export function seedIngredients(db = openDb()) {
   `);
 
   // db.transaction(...) returns a new function wrapped in a db transaction:
-  // BEGIN -> ... -> COMMIT, or ROLLBACK if anything throws.
-  // either all rows commit together or none
+  // BEGIN -> ... -> COMMIT, or ROLLBACK on any error.
+  // So all rows commit together — never a half-seeded palette.
   const seedAll = db.transaction((rows) => {
     for (const row of rows) upsert.run(row);
   });
@@ -30,30 +30,32 @@ export function seedIngredients(db = openDb()) {
 
 export function seedTemplates(db = openDb()) {
   const upsert = db.prepare(`
-    INSERT INTO templates (name, display_name, description, default_method, balance_rule, canonical)
-    VALUES (@name, @display_name, @description, @default_method, @balance_rule, @canonical)
+    INSERT INTO templates (name, display_name, default_method, structure, notes, garnish, steps)
+    VALUES (@name, @display_name, @default_method, @structure, @notes, @garnish, @steps)
     ON CONFLICT(name) DO UPDATE SET
       display_name   = excluded.display_name,
-      description    = excluded.description,
       default_method = excluded.default_method,
-      balance_rule   = excluded.balance_rule,
-      canonical      = excluded.canonical
+      structure      = excluded.structure,
+      notes          = excluded.notes,
+      garnish        = excluded.garnish,
+      steps          = excluded.steps
   `);
- 
+
   const seedAll = db.transaction((rows) => {
     for (const t of rows) {
       upsert.run({
         name: t.name,
         display_name: t.display_name,
-        description: t.description,
         default_method: t.default_method,
-        // objects are stored as JSON text (SQLite has no native JSON type)
-        balance_rule: JSON.stringify(t.balance_rule),
-        canonical: JSON.stringify(t.canonical),
+        // structure is an array of objects — stored as JSON text
+        structure: JSON.stringify(t.structure),
+        notes: t.notes,
+        garnish: t.garnish,
+        steps: t.steps,
       });
     }
   });
- 
+
   seedAll(TEMPLATES);
   const count = db.prepare('SELECT COUNT(*) AS n FROM templates').get().n;
   console.log(`Seeded templates. Count: ${count}`);

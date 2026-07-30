@@ -2,17 +2,19 @@
 PRAGMA foreign_keys = ON;
 
 -- The 6 Cocktail Codex structural families ("the grammar" every drink is built on).
--- Each row holds the template's identity, its balance_rule (structure the LLM
--- generates within + the validator checks), and its canonical recipe (classic recipe
--- no modification). Both rule and recipe are stored as JSON text.
+-- Each row's `structure` (JSON) merges two things into one: the roles + reference
+-- ratios the LLM generates within, AND the classic recipe (each role's example
+-- ingredient with its amount) poured for the 'classic' path. `notes`, `garnish`,
+-- and `steps` round out the family's guidance and canonical preparation.
 CREATE TABLE IF NOT EXISTS templates (
   id             INTEGER PRIMARY KEY,
-  name           TEXT NOT NULL UNIQUE,  -- stable key (used for FK): 'old_fashioned','martini','daiquiri','sidecar','highball','flip'
-  display_name   TEXT NOT NULL,         -- display label (used for UI): 'Old Fashioned'
-  description    TEXT,                  -- what structurally defines this template
-  default_method TEXT,                  -- typical prep: 'stirred'|'shaken'|'built'
-  balance_rule   TEXT,                  -- JSON: {core,required,forbidden,notes} — constrains generation + validator
-  canonical      TEXT                   -- JSON: {ingredients:[{name,amount,unit}],garnish,steps} — the classic recipe to pour
+  name           TEXT NOT NULL UNIQUE,    -- stable key: 'old_fashioned','martini','daiquiri','sidecar','whisky_highball','flip'
+  display_name   TEXT NOT NULL,           -- human label: 'Old Fashioned'
+  default_method TEXT,                    -- typical prep: 'stirred'|'shaken'|'built'
+  structure      TEXT,                    -- JSON: [{role,example,amount,unit}] — roles + reference ratios (rule + canonical merged)
+  notes          TEXT,                    -- prose guidance, including any "don't" warnings
+  garnish        TEXT,                    -- free-text label (display only)
+  steps          TEXT                     -- preparation instructions
 );
 
 -- Curated ingredient palette. `abv` is calculated, not inferred by LLM.
@@ -20,13 +22,13 @@ CREATE TABLE IF NOT EXISTS templates (
 CREATE TABLE IF NOT EXISTS ingredients (
   id       INTEGER PRIMARY KEY,
   name     TEXT NOT NULL UNIQUE,
-  category TEXT NOT NULL,   -- spirit,liqueur,fortified,citrus,sweetener,bitter,sparkling,aromatic,garnish,other
+  category TEXT NOT NULL,   -- role: spirit,liqueur,fortified,citrus,sweetener,bitter,sparkling,aromatic
   abv      REAL NOT NULL DEFAULT 0     -- percent: 40 for gin, 0 for lime juice
 );
 
 -- Holds all drinks. A drink is one of two kinds, set by `source`:
---   'classic'   — a known recipe from the seed file (data/classics.js)
---   'generated' — composed by the LLM from a flavor brief
+--   'classic'   — a template's canonical recipe, poured as-is
+--   'generated' — composed by the LLM from a flavor brief, within a template
 --
 -- A drink is only written to this table once it's POURED. While the host is still
 -- tweaking a draft ("make it less sweet"), the app regenerates it in memory and
@@ -39,7 +41,7 @@ CREATE TABLE IF NOT EXISTS drinks (
   id              INTEGER PRIMARY KEY,
   parent_drink_id INTEGER REFERENCES drinks(id),             -- NULL = root (as poured); else the predecessor version
   name            TEXT NOT NULL,                             -- the drink's name
-  template        TEXT NOT NULL REFERENCES templates(name),  -- the template this drink expresses (classic OR generated)
+  template        TEXT NOT NULL REFERENCES templates(name),  -- which of the 6 families this drink belongs to
   source          TEXT NOT NULL DEFAULT 'generated',         -- 'generated' | 'classic' — how the recipe was obtained
   correction      TEXT,                                      -- remark that produced THIS version (NULL for any root)
   requested       TEXT,                                      -- the host's flavor brief; NULL for classics (no brief — picked from menu)
@@ -61,5 +63,5 @@ CREATE TABLE IF NOT EXISTS recipe_ingredients (
 );
 
 -- Indexes on the columns we actually filter by.
-CREATE INDEX IF NOT EXISTS idx_drinks_parent ON drinks(parent_drink_id);     -- finds a parent drink's direct children
+CREATE INDEX IF NOT EXISTS idx_drinks_parent ON drinks(parent_drink_id);      -- finds a drink's direct children
 CREATE INDEX IF NOT EXISTS idx_ri_drink      ON recipe_ingredients(drink_id); -- finds a drink's ingredients

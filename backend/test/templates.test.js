@@ -9,41 +9,45 @@ test('there are exactly 6 root templates', () => {
   assert.equal(TEMPLATES.length, 6);
 });
 
-test('every canonical ingredient exists in the palette', () => {
-  // If a template names an ingredient not in the palette, pouring that
-  // classic would fail the recipe_ingredients foreign key. Catch it here.
+test('every structure example ingredient exists in the palette', () => {
+  // Each structure entry's `example` is used to pour the classic, becoming a
+  // recipe_ingredients row (FK to ingredients). A bad name would fail that pour.
   for (const t of TEMPLATES) {
-    for (const ing of t.canonical.ingredients) {
+    for (const s of t.structure) {
       assert.ok(
-        paletteNames.has(ing.name),
-        `Template "${t.name}" uses "${ing.name}", which is not in the palette`
+        paletteNames.has(s.example),
+        `Template "${t.name}" example "${s.example}" is not in the palette`
       );
     }
   }
 });
 
-test('every template has a valid balance_rule shape', () => {
+test('every structure entry has role, example, amount, unit', () => {
+  const units = new Set(['oz', 'ml', 'dash', 'barspoon', 'tsp', 'splash', 'whole']);
   for (const t of TEMPLATES) {
-    const r = t.balance_rule;
-    assert.ok(Array.isArray(r.required), `${t.name}: required must be an array`);
-    assert.ok(Array.isArray(r.forbidden), `${t.name}: forbidden must be an array`);
-    assert.ok(typeof r.notes === 'string' && r.notes.length > 0, `${t.name}: notes required`);
-  }
-});
-
-test('required and forbidden roles never overlap', () => {
-  for (const t of TEMPLATES) {
-    const req = new Set(t.balance_rule.required);
-    for (const f of t.balance_rule.forbidden) {
-      assert.ok(!req.has(f), `${t.name}: "${f}" is both required and forbidden`);
+    assert.ok(Array.isArray(t.structure) && t.structure.length > 0, `${t.name}: structure must be a non-empty array`);
+    for (const s of t.structure) {
+      assert.ok(typeof s.role === 'string' && s.role, `${t.name}: entry missing role`);
+      assert.ok(typeof s.example === 'string' && s.example, `${t.name}: entry missing example`);
+      assert.ok(typeof s.amount === 'number' && s.amount > 0, `${t.name}: entry bad amount`);
+      assert.ok(units.has(s.unit), `${t.name}: entry bad unit "${s.unit}"`);
     }
   }
 });
 
-test('every template has canonical steps and a default method', () => {
+test("every structure's first entry is the backbone spirit or fortified base", () => {
+  for (const t of TEMPLATES) {
+    const first = t.structure[0].role;
+    assert.ok(['spirit', 'fortified'].includes(first), `${t.name}: backbone should be spirit/fortified, got "${first}"`);
+  }
+});
+
+test('every template has notes, garnish, steps, and a valid method', () => {
   const methods = new Set(['stirred', 'shaken', 'built', 'none']);
   for (const t of TEMPLATES) {
-    assert.ok(t.canonical.steps.length > 0, `${t.name}: missing steps`);
+    assert.ok(t.notes?.length > 0, `${t.name}: missing notes`);
+    assert.ok(t.garnish?.length > 0, `${t.name}: missing garnish`);
+    assert.ok(t.steps?.length > 0, `${t.name}: missing steps`);
     assert.ok(methods.has(t.default_method), `${t.name}: bad method "${t.default_method}"`);
   }
 });
