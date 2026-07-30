@@ -4,7 +4,7 @@ PRAGMA foreign_keys = ON;
 -- The 6 Cocktail Codex structural families ("the grammar" every drink is built on).
 -- Each row's `structure` (JSON) merges two things into one: the roles + reference
 -- ratios the LLM generates within, AND the classic recipe (each role's example
--- ingredient with its amount) poured for the 'classic' path. `notes`, `garnish`,
+-- ingredient at its amount) poured for the 'classic' path. `notes`, `garnish`,
 -- and `steps` round out the family's guidance and canonical preparation.
 CREATE TABLE IF NOT EXISTS templates (
   id             INTEGER PRIMARY KEY,
@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS drinks (
   requested       TEXT,                                      -- the host's flavor brief; NULL for classics (no brief — picked from menu)
   method          TEXT,                                      -- 'stirred'|'shaken'|'built'|'none' (drives dilution/ABV)
   steps           TEXT,                                      -- blob: ordered instructions
+  notes           TEXT,                                      -- short flavor-profile description shown to host (from template for classics, from LLM for generated)
   abv             REAL,                                      -- computed at pour, per version
   is_final        INTEGER NOT NULL DEFAULT 0,                -- 1 = dialed-in final version (end of convergence)
   created_at      TEXT DEFAULT (datetime('now'))

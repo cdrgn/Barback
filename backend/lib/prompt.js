@@ -6,14 +6,14 @@
 // host's brief — then specifies the JSON output contract so the response is parseable.
 //
 // OUTPUT CONTRACT (what the model must return):
-//   { name, method, ingredients:[{name,amount,unit}], garnish, steps, balance_check }
-// The first five fields match a poured drink's shape, so the SAME pour-writer
-// handles generated drinks and classics identically.
+//   { name, method, ingredients:[{name,amount,unit}], garnish, steps, notes, balance_check }
+// The recipe fields (name, method, ingredients, garnish, steps) match a poured
+// drink's shape, so the SAME pour-writer handles generated drinks and classics.
+// `notes` is a short flavor-profile description shown to the host — the generated
+// counterpart to a template's own `notes` (so both classic and generated drinks
+// have a description to display).
 // `balance_check` is the quality lever: forcing the model to account for the
 // drink's structure catches lopsided results, and it feeds the validator (step 8).
-//
-// NOTE: we may add a `reasoning` field later (a "why this drink" blurb for the
-// host). It's display-only and does no downstream work, so it's deferred for now.
 
 // Group ingredients by category so the model sees them by role.
 function ingredientsByCategory(ingredients) {
@@ -91,6 +91,7 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
   ],
   "garnish": "string — free text",
   "steps": "string — preparation instructions",
+  "notes": "string — a short description of this drink's flavor profile, to show the host",
   "balance_check": "string — one line accounting for backbone/acid/sweet/bitter and confirming balance"
 }`;
 }
