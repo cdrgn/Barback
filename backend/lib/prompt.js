@@ -16,6 +16,10 @@
 // drink's structure catches lopsided results, and it feeds the validator (step 8).
 
 // Group ingredients by category so the model sees them by role.
+// {
+//   spirit: ['gin', 'vodka', 'white rum'],
+//   citrus: ['lime juice', 'lemon juice'],
+// }
 function ingredientsByCategory(ingredients) {
   const groups = {};
   for (const ing of ingredients) {
@@ -25,6 +29,10 @@ function ingredientsByCategory(ingredients) {
 }
 
 // Render the grouped ingredients as readable lines the model can use as its menu.
+// [
+//   '- spirit: gin, vodka, white rum',
+//   '- citrus: lime juice, lemon juice',
+// ]
 function formatIngredients(ingredients) {
   const groups = ingredientsByCategory(ingredients);
   return Object.entries(groups)
@@ -48,9 +56,10 @@ function formatStructure(structure) {
  * @param {Array<{name:string, category:string}>} args.ingredients  Allowed ingredients.
  * @param {string} args.brief  The host's free-text flavor request.
  * @param {Array<object>} [args.examples]  Optional past drinks to steer taste (unused for now).
+ * @param {string} [args.feedback]  On a retry, validator errors to fix from the last attempt.
  * @returns {string} the full prompt text.
  */
-export function buildGenerationPrompt({ template, ingredients, brief, examples = [] }) {
+export function buildGenerationPrompt({ template, ingredients, brief, examples = [], feedback = '' }) {
   if (!template) throw new Error('buildGenerationPrompt: template is required');
   if (!ingredients?.length) throw new Error('buildGenerationPrompt: ingredients are required');
   if (!brief) throw new Error('buildGenerationPrompt: brief is required');
@@ -58,6 +67,11 @@ export function buildGenerationPrompt({ template, ingredients, brief, examples =
   const exampleBlock = examples.length
     ? `\nThe guest previously enjoyed these — make something in that spirit:\n` +
       examples.map((e) => `- ${e.name}`).join('\n') + '\n'
+    : '';
+
+  // On a retry, tell the model what was wrong with its last attempt.
+  const feedbackBlock = feedback
+    ? `\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix these problems:\n${feedback}\n`
     : '';
 
   return `You are an expert bartender creating a single cocktail.
@@ -76,7 +90,7 @@ ${formatIngredients(ingredients)}
 ${exampleBlock}
 GUEST REQUEST:
 ${brief}
-
+${feedbackBlock}
 Compose one balanced cocktail that fits the template and the request.
 Before finalizing, account for the drink's structure: backbone, acid,
 sweetness, dilution, and any bitter/aromatic accent — confirm the
