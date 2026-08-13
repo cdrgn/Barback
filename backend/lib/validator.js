@@ -31,8 +31,8 @@ export function validateRecipe(recipe, template, palette) {
   }
 
   // --- Check 1: every required role from the template must be present ---
-  const requiredRoles = [...new Set(template.structure.map((s) => s.role))];
-  // requiredRoles = Set { 'spirit', 'sweetener', 'bitter' }
+  const requiredRoles = [...new Set(template.structure.map((s) => s.role))]; // copy each item from the set into the array
+  // requiredRoles = [...Set { 'spirit', 'sweetener', 'bitter' }] = ['spirit', 'sweetener', 'bitter']
   for (const role of requiredRoles) {
     if (!rolesPresent.has(role)) {
       errors.push(`missing required role: ${role}`);

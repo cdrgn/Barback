@@ -7,7 +7,7 @@
 //
 // OUTPUT CONTRACT (what the model must return):
 //   { name, method, ingredients:[{name,amount,unit}], garnish, steps, notes, balance_check }
-// The recipe fields (name, method, ingredients, garnish, steps) match a poured
+// The recipe fields (name, method, ingredients, garnish, steps) match a poured (saved)
 // drink's shape, so the SAME pour-writer handles generated drinks and classics.
 // `notes` is a short flavor-profile description shown to the host — the generated
 // counterpart to a template's own `notes` (so both classic and generated drinks

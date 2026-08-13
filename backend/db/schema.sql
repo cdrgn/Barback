@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS ingredients (
 --   'classic'   — a template's canonical recipe, poured as-is
 --   'generated' — composed by the LLM from a flavor brief, within a template
 --
--- A drink is only written to this table once it's POURED. While the host is still
+-- A drink is only written to this table once it's POURED (saved). While the host is still
 -- tweaking a draft ("make it less sweet"), the app regenerates it in memory and
 -- nothing is saved — only pouring commits a drink here.
 --
@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS drinks (
   requested       TEXT,                                      -- the host's flavor brief; NULL for classics (no brief — picked from menu)
   method          TEXT,                                      -- 'stirred'|'shaken'|'built'|'none' (drives dilution/ABV)
   steps           TEXT,                                      -- blob: ordered instructions
+  garnish         TEXT,                                      -- free-text garnish label
   notes           TEXT,                                      -- short flavor-profile description shown to host (from template for classics, from LLM for generated)
   abv             REAL,                                      -- computed at pour, per version
   is_final        INTEGER NOT NULL DEFAULT 0,                -- 1 = dialed-in final version (end of convergence)
