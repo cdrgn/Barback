@@ -33,7 +33,7 @@ const RESPONSE_SCHEMA = {
     },
     garnish: { type: 'string' },
     steps: { type: 'string' },
-    notes: { type: 'string' },
+    description: { type: 'string' },
     balance_check: { type: 'string' },
   },
   required: ['template', 'name', 'method', 'ingredients', 'steps'],
