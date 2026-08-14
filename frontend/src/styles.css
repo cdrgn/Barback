@@ -1,31 +1,44 @@
-/* ---- design tokens (change here, applies everywhere) ---- */
+/* ---- design tokens (gold on near-black) ---- */
 :root {
-  /* warm, bar-side palette — soft amber on a dim background */
-  --bg:            #1a1512;
-  --bg-elevated:   #241d18;
-  --border:        #3a2f26;
-  --text:          #f0e6d8;
-  --text-muted:    #a89886;
-  --accent:        #d4a26a;    /* amber */
-  --accent-dim:    #8a6a44;
-  --danger:        #b85450;
+  /* the room — deep, warm-neutral (barely a hint of brown so it reads bar-lit,
+     not clinical). Not pure black; pure black kills the warmth of the gold. */
+  --bg:          #0d0b09;                     /* deepest — background */
+  --bg-tint:     #14100c;                     /* subtle warm-black variation */
+  --surface:     #1a1613;                     /* cards — one shade forward */
+  --surface-hi:  #221c17;                     /* hover */
+
+  /* gold — the only accent color */
+  --gold:        #d4a55a;                     /* signature */
+  --gold-bright: #f0c878;                     /* peak light — titles, hits */
+  --gold-dim:    #8a6a3d;                     /* aged brass — subtle text */
+
+  /* edges */
+  --border:      rgba(212, 165, 90, 0.18);    /* golden outline, gentle */
+  --border-hi:   rgba(240, 200, 120, 0.55);   /* activated */
+
+  /* text */
+  --text:        #e8dccb;                     /* warm off-white */
+  --text-muted:  #8a8177;                     /* warm-grey, in the gold family */
+
+  /* glow — the radiating warmth */
+  --glow:        rgba(240, 200, 120, 0.4);
+  --glow-soft:   rgba(240, 200, 120, 0.15);
+
+  --danger:      #c76b6b;
 
   /* type */
-  --font-body:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-body:   system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif:  "Iowan Old Style", "Palatino Linotype", Georgia, serif;
 
-  /* spacing scale */
+  /* spacing */
   --sp-1: 0.25rem;
   --sp-2: 0.5rem;
   --sp-3: 0.75rem;
-  --sp-4: 1rem;
-  --sp-5: 1.5rem;
-  --sp-6: 2rem;
+  --sp-4: 1.25rem;
+  --sp-5: 2rem;
+  --sp-6: 3rem;
 
-  /* touch: never below 44px per Apple/Google guidance */
   --touch: 2.75rem;
-
-  /* radii */
   --r-2: 0.5rem;
   --r-3: 0.75rem;
 }
@@ -34,72 +47,94 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  background: var(--bg);
+  /* The whole aesthetic in one property: near-black room with a warm gold
+     glow radiating from the top-center. The glow is subtle enough that it
+     doesn't compete with UI elements, but strong enough to feel atmospheric. */
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, var(--glow-soft) 0%, transparent 65%),
+    linear-gradient(180deg, var(--bg-tint) 0%, var(--bg) 40%);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.5;
   min-height: 100dvh;
-  /* respect the notch on iPhone */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 button { font-family: inherit; }
 
 /* ---- app shell ---- */
 .app {
-  max-width: 32rem;               /* mobile-first — narrow even on desktop */
+  max-width: 32rem;
   margin: 0 auto;
-  padding: var(--sp-5) var(--sp-4) var(--sp-6);
+  padding: var(--sp-6) var(--sp-4) var(--sp-6);
 }
 .app-header {
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-6);
+  text-align: center;
 }
 .app-title {
   font-family: var(--font-serif);
-  font-size: 1.75rem;
-  color: var(--accent);
+  font-size: 2.5rem;
+  color: var(--gold-bright);
   margin: 0;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  /* title glows — the piece you kept liking */
+  text-shadow:
+    0 0 24px rgba(240, 200, 120, 0.5),
+    0 0 60px rgba(240, 200, 120, 0.2);
 }
 .app-subtitle {
   color: var(--text-muted);
-  margin: var(--sp-1) 0 0;
+  margin: var(--sp-2) 0 0;
   font-size: 0.95rem;
+  font-style: italic;
 }
 
 /* ---- generic pieces ---- */
 .section-label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
+  letter-spacing: 0.18em;
+  color: var(--gold-dim);
   margin: 0 0 var(--sp-3);
 }
 .button {
   min-height: var(--touch);
   width: 100%;
   padding: 0 var(--sp-4);
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #1a1512;
+  border: 1px solid var(--gold);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: var(--bg);
   border-radius: var(--r-2);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: box-shadow 0.2s, transform 0.05s;
+  box-shadow: 0 0 24px -4px var(--glow);
 }
-.button:disabled { opacity: 0.5; cursor: not-allowed; }
+.button:hover:not(:disabled) {
+  box-shadow: 0 0 36px -2px var(--glow);
+}
+.button:active:not(:disabled) { transform: translateY(1px); }
+.button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 .button.secondary {
   background: transparent;
-  color: var(--accent);
+  color: var(--gold-bright);
+  box-shadow: none;
+}
+.button.secondary:hover:not(:disabled) {
+  background: rgba(212, 165, 90, 0.08);
+  box-shadow: 0 0 20px -8px var(--glow);
 }
 .error {
   color: var(--danger);
-  background: rgba(184, 84, 80, 0.1);
+  background: rgba(199, 107, 107, 0.1);
   padding: var(--sp-3);
   border-radius: var(--r-2);
   margin: var(--sp-3) 0;
   font-size: 0.9rem;
+  border: 1px solid rgba(199, 107, 107, 0.3);
 }
 
 /* ---- template picker ---- */
@@ -111,20 +146,27 @@ button { font-family: inherit; }
 .template-card {
   min-height: var(--touch);
   padding: var(--sp-4);
-  background: var(--bg-elevated);
+  background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--r-3);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
-.template-card:hover,
-.template-card.selected { border-color: var(--accent); }
+.template-card:hover {
+  border-color: var(--border-hi);
+  background: var(--surface-hi);
+  box-shadow: 0 0 28px -8px var(--glow);
+}
+.template-card.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 32px -6px var(--glow);
+}
 .template-card-name {
   font-family: var(--font-serif);
-  font-size: 1.1rem;
-  color: var(--accent);
+  font-size: 1.15rem;
+  color: var(--gold-bright);
   margin: 0 0 var(--sp-1);
 }
 .template-card-method {
@@ -135,7 +177,7 @@ button { font-family: inherit; }
 .template-card-notes {
   font-size: 0.85rem;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.45;
   margin-top: var(--sp-1);
 }
 
@@ -144,28 +186,37 @@ button { font-family: inherit; }
   width: 100%;
   min-height: 5rem;
   padding: var(--sp-3);
-  background: var(--bg-elevated);
+  background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   font-family: inherit;
   font-size: 1rem;
   resize: vertical;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.brief-input:focus { outline: none; border-color: var(--accent); }
+.brief-input::placeholder { color: var(--text-muted); font-style: italic; }
+.brief-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 24px -6px var(--glow);
+}
 
 /* ---- recipe view ---- */
 .recipe {
   padding: var(--sp-5);
-  background: var(--bg-elevated);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-3);
+  /* recipe card is the star — it radiates */
+  box-shadow: 0 0 44px -12px var(--glow), 0 8px 32px -12px rgba(0, 0, 0, 0.5);
 }
 .recipe-name {
   font-family: var(--font-serif);
-  font-size: 1.5rem;
-  color: var(--accent);
+  font-size: 1.75rem;
+  color: var(--gold-bright);
   margin: 0 0 var(--sp-2);
+  text-shadow: 0 0 24px rgba(240, 200, 120, 0.3);
 }
 .recipe-meta {
   color: var(--text-muted);
@@ -174,12 +225,12 @@ button { font-family: inherit; }
   text-transform: capitalize;
 }
 .recipe-attribution {
-  color: var(--accent-dim);
+  color: var(--gold);
   font-size: 0.9rem;
   margin: 0 0 var(--sp-4);
   padding: var(--sp-3);
-  background: rgba(212, 162, 106, 0.06);
-  border-left: 2px solid var(--accent-dim);
+  background: rgba(212, 165, 90, 0.06);
+  border-left: 2px solid var(--gold-dim);
   border-radius: 0 var(--r-2) var(--r-2) 0;
 }
 .recipe-ingredients {
@@ -188,7 +239,7 @@ button { font-family: inherit; }
   margin: 0 0 var(--sp-4);
 }
 .recipe-ingredients li {
-  padding: var(--sp-2) 0;
+  padding: var(--sp-3) 0;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
@@ -196,25 +247,27 @@ button { font-family: inherit; }
 }
 .recipe-ingredients li:last-child { border-bottom: 0; }
 .recipe-ingredient-amount {
-  color: var(--accent-dim);
+  color: var(--gold-bright);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  font-weight: 500;
 }
 .recipe-notes {
   font-style: italic;
   color: var(--text-muted);
   margin: var(--sp-4) 0;
+  line-height: 1.65;
 }
 .recipe-steps {
   color: var(--text);
   margin: var(--sp-3) 0;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 .recipe-footer {
   display: flex;
   justify-content: space-between;
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--gold-dim);
   margin-top: var(--sp-4);
   padding-top: var(--sp-3);
   border-top: 1px solid var(--border);
