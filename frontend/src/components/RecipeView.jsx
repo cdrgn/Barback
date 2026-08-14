@@ -1,14 +1,20 @@
-// Renders a recipe (draft or saved) — name, ingredients, garnish/notes/steps,
-// footer with ABV and attempts. `onPour` and `onDiscard` are optional actions
-// shown when the recipe is a DRAFT (not yet saved).
+// Renders a recipe (draft or saved) — name, ingredients, garnish/steps, footer
+// with ABV and attempts. `onPour` and `onDiscard` are optional actions shown
+// when the recipe is a DRAFT (not yet saved).
 //
-// When `pickedTemplate` is passed (open-mode generation), shows a short
-// "A custom [Family]" attribution with the LLM's reasoning above the ingredients.
+// Top of the card carries the two host-facing explanations, in reading order:
+//   1. description — "what this drink is like" (always shown if present)
+//   2. attribution — "A custom [Family] — because..." (only for generated
+//      drinks, where `pickedTemplate` was returned)
 export default function RecipeView({ recipe, attempts, pickedTemplate, onPour, onDiscard, pouring }) {
   return (
     <article className="recipe">
       <h2 className="recipe-name">{recipe.name}</h2>
       <p className="recipe-meta">{recipe.method}</p>
+
+      {recipe.description && (
+        <p className="recipe-description">{recipe.description}</p>
+      )}
 
       {pickedTemplate && (
         <p className="recipe-attribution">
@@ -34,7 +40,6 @@ export default function RecipeView({ recipe, attempts, pickedTemplate, onPour, o
         </p>
       )}
       {recipe.steps && <p className="recipe-steps">{recipe.steps}</p>}
-      {recipe.description && <p className="recipe-notes">{recipe.description}</p>}
 
       <div className="recipe-footer">
         {recipe.abv != null && <span>ABV ~{recipe.abv}%</span>}

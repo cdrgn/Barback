@@ -221,8 +221,15 @@ button { font-family: inherit; }
 .recipe-meta {
   color: var(--text-muted);
   font-size: 0.9rem;
-  margin: 0 0 var(--sp-4);
+  margin: 0 0 var(--sp-3);
   text-transform: capitalize;
+}
+.recipe-description {
+  font-style: italic;
+  color: var(--text);
+  margin: 0 0 var(--sp-4);
+  line-height: 1.6;
+  opacity: 0.9;
 }
 .recipe-attribution {
   color: var(--gold);
