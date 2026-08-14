@@ -215,14 +215,8 @@ button { font-family: inherit; }
   font-family: var(--font-serif);
   font-size: 1.75rem;
   color: var(--gold-bright);
-  margin: 0 0 var(--sp-2);
-  text-shadow: 0 0 24px rgba(240, 200, 120, 0.3);
-}
-.recipe-meta {
-  color: var(--text-muted);
-  font-size: 0.9rem;
   margin: 0 0 var(--sp-3);
-  text-transform: capitalize;
+  text-shadow: 0 0 24px rgba(240, 200, 120, 0.3);
 }
 .recipe-description {
   font-style: italic;
@@ -271,14 +265,43 @@ button { font-family: inherit; }
   line-height: 1.65;
 }
 .recipe-footer {
-  display: flex;
-  justify-content: space-between;
   font-size: 0.85rem;
   color: var(--gold-dim);
-  margin-top: var(--sp-4);
+  margin-top: var(--sp-5);
   padding-top: var(--sp-3);
   border-top: 1px solid var(--border);
 }
 
 /* ---- spacing utility ---- */
 .stack > * + * { margin-top: var(--sp-4); }
+
+/* recipe sections: each labeled block (Ingredients, Garnish, Instructions) */
+.recipe-section {
+  margin: 0 0 var(--sp-4);
+}
+.recipe-section:last-of-type {
+  margin-bottom: 0;
+}
+.recipe-body {
+  color: var(--text);
+  margin: 0;
+  line-height: 1.6;
+  text-transform: capitalize;
+}
+/* Garnish is short — don't capitalize the whole thing, only first letter */
+.recipe-section .recipe-body {
+  text-transform: none;
+}
+
+/* footer: three facts (ABV · method · attempts), gently separated */
+.recipe-footer-facts {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  text-transform: capitalize;
+}
+.recipe-footer-facts > span:not(:last-child)::after {
+  content: '·';
+  margin-left: var(--sp-3);
+  color: var(--border);
+}
