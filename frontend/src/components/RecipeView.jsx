@@ -34,7 +34,7 @@ export default function RecipeView({ recipe, attempts, pickedTemplate, onPour, o
         </p>
       )}
       {recipe.steps && <p className="recipe-steps">{recipe.steps}</p>}
-      {recipe.notes && <p className="recipe-notes">{recipe.notes}</p>}
+      {recipe.description && <p className="recipe-notes">{recipe.description}</p>}
 
       <div className="recipe-footer">
         {recipe.abv != null && <span>ABV ~{recipe.abv}%</span>}

@@ -54,7 +54,7 @@ test('prompt includes the host brief', () => {
 
 test('prompt specifies the full JSON output contract including template + reasoning', () => {
   const p = buildGenerationPrompt({ templates, ingredients, brief });
-  for (const field of ['template', 'reasoning', 'name', 'method', 'ingredients', 'garnish', 'steps', 'notes', 'balance_check']) {
+  for (const field of ['template', 'reasoning', 'name', 'method', 'ingredients', 'garnish', 'steps', 'description', 'balance_check']) {
     assert.ok(p.includes(`"${field}"`), `missing ${field} field in contract`);
   }
 });

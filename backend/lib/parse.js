@@ -21,7 +21,7 @@ function stripFences(text) {
 /**
  * Parse and validate an LLM generation response.
  * @param {string} raw  The model's raw text output.
- * @returns {object} A validated recipe: {name, method, template, ingredients, garnish, steps, notes, balance_check, reasoning}
+ * @returns {object} A validated recipe: {name, method, template, ingredients, garnish, steps, description, balance_check, reasoning}
  * @throws {Error} if the text isn't valid JSON or doesn't match the contract.
  */
 export function parseRecipe(raw) {
@@ -52,7 +52,7 @@ export function parseRecipe(raw) {
 
   // Optional display/quality fields (present per the contract, but tolerate absence).
   const garnish = typeof obj.garnish === 'string' ? obj.garnish : '';
-  const notes = typeof obj.notes === 'string' ? obj.notes : '';
+  const description = typeof obj.description === 'string' ? obj.description : '';
   const balance_check = typeof obj.balance_check === 'string' ? obj.balance_check : '';
   const reasoning = typeof obj.reasoning === 'string' ? obj.reasoning : '';
 
@@ -73,7 +73,7 @@ export function parseRecipe(raw) {
     return { name: ing.name, amount: ing.amount, unit: ing.unit };
   });
 
-  return { name, method, template, ingredients, garnish, steps, notes, balance_check, reasoning };
+  return { name, method, template, ingredients, garnish, steps, description, balance_check, reasoning };
 }
 
 function requireString(obj, key) {

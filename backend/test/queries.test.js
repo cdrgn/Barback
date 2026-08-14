@@ -25,7 +25,7 @@ const daiquiriRecipe = {
   ],
   garnish: 'lime wheel',
   steps: 'Shake, strain.',
-  notes: 'Smoky sour.',
+  description: 'Smoky sour.',
 };
 
 test('saveDrink saves a drink and its ingredients, with a computed ABV', () => {

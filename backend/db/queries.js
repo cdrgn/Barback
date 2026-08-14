@@ -20,8 +20,8 @@ export function saveDrink(db, { recipe, template, source = 'generated', brief = 
   const abv = resolveRecipeAbv(db, recipe);
 
   const insertDrink = db.prepare(`
-    INSERT INTO drinks (parent_drink_id, name, template, source, correction, requested, method, steps, garnish, notes, abv)
-    VALUES (@parent_drink_id, @name, @template, @source, @correction, @requested, @method, @steps, @garnish, @notes, @abv)
+    INSERT INTO drinks (parent_drink_id, name, template, source, correction, requested, method, steps, garnish, description, abv)
+    VALUES (@parent_drink_id, @name, @template, @source, @correction, @requested, @method, @steps, @garnish, @description, @abv)
   `);
   const getIngredientId = db.prepare('SELECT id FROM ingredients WHERE name = ?');
   const insertRecipeIngredient = db.prepare('INSERT INTO recipe_ingredients (drink_id, ingredient_id, amount, unit) VALUES (?, ?, ?, ?)');
@@ -37,7 +37,7 @@ export function saveDrink(db, { recipe, template, source = 'generated', brief = 
       method: recipe.method,
       steps: recipe.steps ?? null,
       garnish: recipe.garnish ?? null,
-      notes: recipe.notes ?? null,
+      description: recipe.description ?? null,
       abv,
     });
     const drinkId = info.lastInsertRowid; // get id of inserted row
@@ -95,7 +95,10 @@ export function templateToRecipe(template) {
     ingredients: template.structure.map((s) => ({ name: s.example, amount: s.amount, unit: s.unit })),
     garnish: template.garnish,
     steps: template.steps,
-    notes: template.notes,
+    // Poured classics keep the template's host-facing description as the
+    // drink's description; the template's LLM-facing `notes` never leaves
+    // the prompt path.
+    description: template.description,
   };
 }
 

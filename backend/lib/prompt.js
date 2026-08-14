@@ -7,11 +7,11 @@
 // (safety net), and Gemini's responseSchema enum (structural constraint).
 //
 // OUTPUT CONTRACT (what the model must return):
-//   { template, reasoning, name, method, ingredients:[{name,amount,unit}], garnish, steps, notes, balance_check }
+//   { template, reasoning, name, method, ingredients:[{name,amount,unit}], garnish, steps, description, balance_check }
 // The recipe fields (name, method, ingredients, garnish, steps) match a poured (saved)
 // drink's shape, so the SAME pour-writer handles generated drinks and classics.
 // `template` names the picked family (one of the 6). `reasoning` explains the pick.
-// `notes` is a short flavor-profile description shown to the host.
+// `description` is a short flavor-profile description shown to the host.
 // `balance_check` is the quality lever: forcing the model to account for the
 // drink's structure catches lopsided results, and it feeds the validator (step 8).
 
@@ -110,7 +110,7 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
   ],
   "garnish": "string — free text",
   "steps": "string — preparation instructions",
-  "notes": "string — a short description of this drink's flavor profile, to show the host",
+  "description": "string — a short description of this drink's flavor profile, to show the host",
   "balance_check": "string — one line accounting for backbone/acid/sweet/bitter and confirming balance"
 }`;
 }

@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS drinks (
   method          TEXT,                                      -- 'stirred'|'shaken'|'built'|'none' (drives dilution/ABV)
   steps           TEXT,                                      -- blob: ordered instructions
   garnish         TEXT,                                      -- free-text garnish label
-  notes           TEXT,                                      -- short flavor-profile description shown to host (from template for classics, from LLM for generated)
+  description     TEXT,                                      -- short host-facing description of the drink (from template for classics, from LLM for generated)
   abv             REAL,                                      -- computed at pour, per version
   is_final        INTEGER NOT NULL DEFAULT 0,                -- 1 = dialed-in final version (end of convergence)
   created_at      TEXT DEFAULT (datetime('now'))

@@ -13,7 +13,7 @@ const good = JSON.stringify({
   ],
   garnish: 'grapefruit peel',
   steps: 'Shake with ice, strain over fresh ice.',
-  notes: 'Bright and smoky, on the drier side.',
+  description: 'Bright and smoky, on the drier side.',
   balance_check: 'Backbone mezcal, acid from citrus, light sweet — balanced.',
 });
 
@@ -65,14 +65,14 @@ test('throws on ingredient with non-positive amount', () => {
 });
 
 // Not too concerned with validation here, main point is to parse absolutely necessary information.
-test('tolerates missing optional fields (garnish/notes/balance_check)', () => {
+test('tolerates missing optional fields (garnish/description/balance_check)', () => {
   const minimal = JSON.stringify({
     name: 'Plain', template: 'martini', method: 'stirred', steps: 'Stir.',
     ingredients: [{ name: 'gin', amount: 2, unit: 'oz' }],
   });
   const r = parseRecipe(minimal);
   assert.equal(r.garnish, '');
-  assert.equal(r.notes, '');
+  assert.equal(r.description, '');
   assert.equal(r.balance_check, '');
 });
 
