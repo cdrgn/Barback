@@ -28,6 +28,7 @@ export const TEMPLATES = [
     name: 'old_fashioned',
     display_name: 'Old Fashioned',
     default_method: 'stirred',
+    description: 'Spirit-forward and boozy. A single spirit polished with a touch of sugar and bitters. No citrus, no distractions — just the spirit at its best.',
     structure: [
       { role: 'spirit',    example: 'bourbon',           amount: 2, unit: 'oz' },
       { role: 'sweetener', example: 'demerara syrup',    amount: 1, unit: 'tsp' },
@@ -43,6 +44,7 @@ export const TEMPLATES = [
     name: 'martini',
     display_name: 'Martini',
     default_method: 'stirred',
+    description: 'Cold, clear, and elegant. A spirit lengthened with fortified wine. Bracing on the first sip, contemplative on the second.',
     structure: [
       { role: 'spirit',    example: 'gin',          amount: 2,    unit: 'oz' },
       { role: 'fortified', example: 'dry vermouth', amount: 0.75, unit: 'oz' },
@@ -56,6 +58,7 @@ export const TEMPLATES = [
     name: 'daiquiri',
     display_name: 'Daiquiri',
     default_method: 'shaken',
+    description: 'The exposed sour. Spirit balanced by fresh citrus and a touch of sweetness — bright, clean, refreshing.',
     structure: [
       { role: 'spirit',    example: 'white rum',    amount: 2,    unit: 'oz' },
       { role: 'citrus',    example: 'lime juice',   amount: 0.75, unit: 'oz' },
@@ -70,6 +73,7 @@ export const TEMPLATES = [
     name: 'sidecar',
     display_name: 'Sidecar',
     default_method: 'shaken',
+    description: 'A richer, more aromatic sour. Where the daiquiri uses simple syrup, this uses a liqueur (often orange) for depth and complexity.',
     structure: [
       { role: 'spirit',    example: 'cognac',       amount: 1.5,  unit: 'oz' },
       { role: 'liqueur',   example: 'cointreau',    amount: 1,    unit: 'oz' },
@@ -85,6 +89,7 @@ export const TEMPLATES = [
     name: 'whisky_highball',
     display_name: 'Whisky Highball',
     default_method: 'built',
+    description: 'Long, tall, and effervescent. A spirit stretched with a carbonated mixer. Refreshing and easy — the drink for a warm evening.',
     structure: [
       { role: 'spirit',    example: 'scotch whisky', amount: 2, unit: 'oz' },
       { role: 'sparkling', example: 'soda water',    amount: 6, unit: 'oz' },
@@ -98,6 +103,7 @@ export const TEMPLATES = [
     name: 'flip',
     display_name: 'Flip',
     default_method: 'shaken',
+    description: 'Silky, rich, and dessert-like. A spirit or fortified wine emulsified with a whole egg and a touch of sugar, finished with fresh nutmeg.',
     structure: [
       { role: 'spirit',    example: 'aged rum',  amount: 2, unit: 'oz' },
       { role: 'aromatic',  example: 'whole egg', amount: 1, unit: 'whole' },

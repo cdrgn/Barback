@@ -1,5 +1,5 @@
-// Grid of the 6 template cards. Shows the template's notes (flavor description)
-// rather than the prep method — the notes actually help a novice pick.
+// Grid of the 6 template cards. Shows each template's host-facing description
+// (short, plain-language) so a novice can browse and pick without bar jargon.
 export default function TemplatePicker({ templates, selectedName, onSelect }) {
   if (!templates.length) {
     console.log("If templates don't load, check if DB has been seeded.");
@@ -17,7 +17,7 @@ export default function TemplatePicker({ templates, selectedName, onSelect }) {
             onClick={() => onSelect(t)}
           >
             <div className="template-card-name">{t.display_name}</div>
-            <div className="template-card-notes">{t.notes}</div>
+            <div className="template-card-notes">{t.description}</div>
           </button>
         ))}
       </div>

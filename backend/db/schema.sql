@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS templates (
   name           TEXT NOT NULL UNIQUE,    -- stable key: 'old_fashioned','martini','daiquiri','sidecar','whisky_highball','flip'
   display_name   TEXT NOT NULL,           -- human label: 'Old Fashioned'
   default_method TEXT,                    -- typical prep: 'stirred'|'shaken'|'built'
+  description    TEXT,                    -- HOST-facing: short plain-language description shown in the picker
   structure      TEXT,                    -- JSON: [{role,example,amount,unit}] — roles + reference ratios (rule + canonical merged)
   examples       TEXT,                    -- JSON: [named drinks that belong to this family] — fed to LLM for classification
   notes          TEXT,                    -- prose guidance, including any "don't" warnings
