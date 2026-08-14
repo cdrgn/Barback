@@ -15,8 +15,12 @@ const db = openDb();
 
 // GET /api/templates
 // Returns all 6 templates, each enriched with a classic property (canonical recipe, ready to pour).
+// The classic property is also enhanced with an abv property.
 app.get('/api/templates', (req, res) => {
-  const templates = getTemplates(db).map((t) => ({ ...t, classic: templateToRecipe(t) }));
+  const templates = getTemplates(db).map((t) => {
+    const classic = templateToRecipe(t);
+    return { ...t, classic: { ...classic, abv: resolveRecipeAbv(db, classic) } };
+  });
   res.json(templates);
 });
 
