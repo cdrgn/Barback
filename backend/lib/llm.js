@@ -21,21 +21,27 @@ function getClient() {
 
 /**
  * Send a prompt to Gemini and return the raw text response.
- * @param {string} prompt  The full prompt (from buildGenerationPrompt).
+ * @param {string} prompt            The full prompt (from buildGenerationPrompt).
+ * @param {object} [responseSchema]  Optional JSON schema Gemini enforces on the
+ *                                   response (e.g. enum for template names).
  * @returns {Promise<string>} the model's raw text output.
  */
-export async function callLlm(prompt) {
+export async function callLlm(prompt, responseSchema = undefined) {
   if (!prompt) throw new Error('callLlm: prompt is required');
+
+  const config = {
+    // Ask the API itself to return JSON — reduces markdown-fence noise.
+    responseMimeType: 'application/json',
+    // Low temperature: we want reliable, balanced drinks, not wild variance.
+    temperature: 0.7,
+  };
+  // Optional structural constraint (e.g. enum for template names).
+  if (responseSchema) config.responseSchema = responseSchema;
 
   const response = await getClient().models.generateContent({
     model: MODEL,
     contents: prompt,
-    config: {
-      // Ask the API itself to return JSON — reduces markdown-fence noise.
-      responseMimeType: 'application/json',
-      // Low temperature: we want reliable, balanced drinks, not wild variance.
-      temperature: 0.7,
-    },
+    config,
   });
 
   const text = response.text;

@@ -1,19 +1,23 @@
 // Pure prompt builder. No LLM call, no DB — just (request data) -> prompt string.
 // Kept separate from the LLM call (step 7) so it can be tested with zero tokens.
 //
-// It assembles what the model needs from the template's `structure` (roles +
-// reference proportions + example ingredients), the allowed ingredients, and the
-// host's brief — then specifies the JSON output contract so the response is parseable.
+// One generation flow: the host provides a flavor brief; the LLM picks the
+// best-fit template AND composes a drink within it, in one call. Template
+// membership is guarded at 3 layers — this prompt (instructs), the parser
+// (safety net), and Gemini's responseSchema enum (structural constraint).
 //
 // OUTPUT CONTRACT (what the model must return):
-//   { name, method, ingredients:[{name,amount,unit}], garnish, steps, notes, balance_check }
+//   { template, reasoning, name, method, ingredients:[{name,amount,unit}], garnish, steps, notes, balance_check }
 // The recipe fields (name, method, ingredients, garnish, steps) match a poured (saved)
 // drink's shape, so the SAME pour-writer handles generated drinks and classics.
-// `notes` is a short flavor-profile description shown to the host — the generated
-// counterpart to a template's own `notes` (so both classic and generated drinks
-// have a description to display).
+// `template` names the picked family (one of the 6). `reasoning` explains the pick.
+// `notes` is a short flavor-profile description shown to the host.
 // `balance_check` is the quality lever: forcing the model to account for the
 // drink's structure catches lopsided results, and it feeds the validator (step 8).
+
+// The 6 valid template names — the enum both the prompt and the parser enforce.
+// Exported so llm.js can pass it to responseSchema and parse.js can validate.
+export const VALID_TEMPLATE_NAMES = ['old_fashioned', 'martini', 'daiquiri', 'sidecar', 'whisky_highball', 'flip'];
 
 // Group ingredients by category so the model sees them by role.
 // {
@@ -40,64 +44,65 @@ function formatIngredients(ingredients) {
     .join('\n');
 }
 
-// Render a template's `structure` as reference proportions: one line per role,
-// with an example ingredient and the verified amount. This is the balance guide —
-// real ratios the model anchors on, while being free to vary the actual ingredients.
-function formatStructure(structure) {
-  return structure
-    .map((s) => `- ${s.role} (e.g. ${s.example}): ${s.amount} ${s.unit}`)
-    .join('\n');
+// Render the template menu for the LLM to pick from. Each line carries:
+//   - snake_case name (the enum value it must return)
+//   - display name
+//   - flavor notes
+//   - a few named example drinks in that family — the key to correct picks,
+//     so "make me a mojito" picks daiquiri (mojito is a daiquiri variant),
+//     not whisky_highball (which only structurally resembles it via soda).
+function formatTemplateMenu(templates) {
+  return templates.map((t) => {
+    const examples = t.examples?.length ? `\n    Examples: ${t.examples.join(', ')}.` : '';
+    return `- ${t.name} (${t.display_name}): ${t.notes}${examples}`;
+  }).join('\n');
 }
 
 /**
  * Build the generation prompt.
  * @param {object} args
- * @param {object} args.template  A template row: {display_name, default_method, structure(array), notes, ...}
+ * @param {Array<object>} args.templates    All 6 templates (with structure, notes, examples).
  * @param {Array<{name:string, category:string}>} args.ingredients  Allowed ingredients.
- * @param {string} args.brief  The host's free-text flavor request.
- * @param {Array<object>} [args.examples]  Optional past drinks to steer taste (unused for now).
- * @param {string} [args.feedback]  On a retry, validator errors to fix from the last attempt.
+ * @param {string} args.brief               The host's free-text flavor request.
+ * @param {string} [args.feedback]          On a retry, validator errors to fix.
  * @returns {string} the full prompt text.
  */
-export function buildGenerationPrompt({ template, ingredients, brief, examples = [], feedback = '' }) {
-  if (!template) throw new Error('buildGenerationPrompt: template is required');
+export function buildGenerationPrompt({ templates, ingredients, brief, feedback = '' }) {
+  if (!templates?.length) throw new Error('buildGenerationPrompt: templates are required');
   if (!ingredients?.length) throw new Error('buildGenerationPrompt: ingredients are required');
   if (!brief) throw new Error('buildGenerationPrompt: brief is required');
-
-  const exampleBlock = examples.length
-    ? `\nThe guest previously enjoyed these — make something in that spirit:\n` +
-      examples.map((e) => `- ${e.name}`).join('\n') + '\n'
-    : '';
 
   // On a retry, tell the model what was wrong with its last attempt.
   const feedbackBlock = feedback
     ? `\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix these problems:\n${feedback}\n`
     : '';
 
-  return `You are an expert bartender creating a single cocktail.
+  return `You are an expert bartender creating a single cocktail from a flavor brief.
 
-TEMPLATE: ${template.display_name}
-Build the drink within this template. Include each role below (the first is the
-backbone). Vary the specific ingredients freely, but keep the proportions balanced.
+First, identify which of the 6 root cocktail families best fits the brief. Use the
+family's flavor notes AND the named examples — if the brief mentions or resembles
+a named drink, that drink's family is the correct pick. Do NOT pick based on
+surface ingredients (e.g. a mojito uses soda but is a DAIQUIRI, not a highball).
 
-Reference proportions (a balance guide, NOT a recipe to copy):
-${formatStructure(template.structure)}
-${template.notes ? `\nNotes: ${template.notes}` : ''}
-Default preparation method: ${template.default_method}.
+TEMPLATES — set "template" to EXACTLY ONE of these snake_case names:
+${formatTemplateMenu(templates)}
+
+Valid template values (any other value is REJECTED): ${VALID_TEMPLATE_NAMES.join(', ')}.
 
 ALLOWED INGREDIENTS (use ONLY these; do not invent others):
 ${formatIngredients(ingredients)}
-${exampleBlock}
+
 GUEST REQUEST:
 ${brief}
 ${feedbackBlock}
-Compose one balanced cocktail that fits the template and the request.
-Before finalizing, account for the drink's structure: backbone, acid,
-sweetness, dilution, and any bitter/aromatic accent — confirm the
-proportions are balanced.
+Compose one balanced cocktail that fits the chosen template and the brief.
+Before finalizing, account for the drink's structure: backbone, acid, sweetness,
+dilution, and any bitter/aromatic accent — confirm the proportions are balanced.
 
 Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
 {
+  "template": "one of: ${VALID_TEMPLATE_NAMES.join(' | ')}",
+  "reasoning": "string — one short sentence on why this template fits the brief",
   "name": "string — the cocktail's name",
   "method": "stirred | shaken | built | none",
   "ingredients": [
@@ -110,4 +115,4 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
 }`;
 }
 
-export { formatIngredients, formatStructure };
+export { formatIngredients, formatTemplateMenu };

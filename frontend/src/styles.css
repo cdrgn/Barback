@@ -132,6 +132,12 @@ button { font-family: inherit; }
   color: var(--text-muted);
   text-transform: capitalize;
 }
+.template-card-notes {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: var(--sp-1);
+}
 
 /* ---- brief input ---- */
 .brief-input {
@@ -166,6 +172,15 @@ button { font-family: inherit; }
   font-size: 0.9rem;
   margin: 0 0 var(--sp-4);
   text-transform: capitalize;
+}
+.recipe-attribution {
+  color: var(--accent-dim);
+  font-size: 0.9rem;
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3);
+  background: rgba(212, 162, 106, 0.06);
+  border-left: 2px solid var(--accent-dim);
+  border-radius: 0 var(--r-2) var(--r-2) 0;
 }
 .recipe-ingredients {
   list-style: none;

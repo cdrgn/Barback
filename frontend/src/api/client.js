@@ -18,9 +18,10 @@ export const fetchTemplates   = () => request('/api/templates');
 // GET /api/ingredients -> the palette
 export const fetchIngredients = () => request('/api/ingredients');
 
-// POST /api/generate -> { recipe (with abv), attempts }
+// POST /api/generate -> { recipe (with abv), attempts, pickedTemplate? }
+// Pass template=null for OPEN mode (LLM picks the template from the brief).
 export const generate = (template, brief) =>
-  request('/api/generate', { method: 'POST', body: JSON.stringify({ template, brief }) });
+  request('/api/generate', { method: 'POST', body: JSON.stringify(template ? { template, brief } : { brief }) });
 
 // POST /api/drinks -> the saved drink (with id + ingredients)
 export const saveDrink = (payload) =>

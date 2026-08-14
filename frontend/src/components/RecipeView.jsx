@@ -1,12 +1,21 @@
 // Renders a recipe (draft or saved) — name, ingredients, garnish/notes/steps,
 // footer with ABV and attempts. `onPour` and `onDiscard` are optional actions
-// shown when the recipe is a DRAFT (i.e. not yet saved). For a saved drink,
-// don't pass those and the buttons disappear.
-export default function RecipeView({ recipe, attempts, onPour, onDiscard, pouring }) {
+// shown when the recipe is a DRAFT (not yet saved).
+//
+// When `pickedTemplate` is passed (open-mode generation), shows a short
+// "A custom [Family]" attribution with the LLM's reasoning above the ingredients.
+export default function RecipeView({ recipe, attempts, pickedTemplate, onPour, onDiscard, pouring }) {
   return (
     <article className="recipe">
       <h2 className="recipe-name">{recipe.name}</h2>
       <p className="recipe-meta">{recipe.method}</p>
+
+      {pickedTemplate && (
+        <p className="recipe-attribution">
+          A custom <strong>{pickedTemplate.display_name}</strong>
+          {pickedTemplate.reasoning && ` — ${pickedTemplate.reasoning}`}
+        </p>
+      )}
 
       <ul className="recipe-ingredients">
         {recipe.ingredients.map((i, idx) => (
@@ -48,7 +57,6 @@ export default function RecipeView({ recipe, attempts, onPour, onDiscard, pourin
   );
 }
 
-// Drop unnecessary trailing zeros: 0.75 -> "0.75", 2 -> "2".
 function formatAmount(n) {
   return Number.isInteger(n) ? String(n) : String(n);
 }

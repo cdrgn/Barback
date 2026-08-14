@@ -1,5 +1,5 @@
-// Grid of the 6 template cards. Controlled by parent — parent owns the
-// selected template and passes an onSelect callback.
+// Grid of the 6 template cards. Shows the template's notes (flavor description)
+// rather than the prep method — the notes actually help a novice pick.
 export default function TemplatePicker({ templates, selectedName, onSelect }) {
   if (!templates.length) {
     console.log("If templates don't load, check if DB has been seeded.");
@@ -8,7 +8,7 @@ export default function TemplatePicker({ templates, selectedName, onSelect }) {
 
   return (
     <div>
-      <p className="section-label">Choose a template</p>
+      <p className="section-label">Choose a classic to make</p>
       <div className="template-grid">
         {templates.map((t) => (
           <button
@@ -17,7 +17,7 @@ export default function TemplatePicker({ templates, selectedName, onSelect }) {
             onClick={() => onSelect(t)}
           >
             <div className="template-card-name">{t.display_name}</div>
-            <div className="template-card-method">{t.default_method}</div>
+            <div className="template-card-notes">{t.notes}</div>
           </button>
         ))}
       </div>

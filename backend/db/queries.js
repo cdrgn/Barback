@@ -78,7 +78,7 @@ export function getHistory(db) {
 // All templates, with their JSON structure parsed back into an array.
 export function getTemplates(db) {
   return db.prepare('SELECT * FROM templates ORDER BY id').all()
-    .map((r) => ({ ...r, structure: JSON.parse(r.structure) })); // copy each object but overwrite 'structure' property
+    .map((r) => ({ ...r, structure: JSON.parse(r.structure), examples: r.examples ? JSON.parse(r.examples) : [] })); // copy each object but overwrite 'structure' and 'examples' property
 }
 
 // The ingredient palette.

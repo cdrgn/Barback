@@ -3,7 +3,10 @@
 // (markdown fences, JSON parsing, shape checking) live here so they can be
 // tested exhaustively with zero API tokens. The network call is separate (llm.js).
 
+import { VALID_TEMPLATE_NAMES } from './prompt.js';
+
 const VALID_METHODS = new Set(['stirred', 'shaken', 'built', 'none']);
+const VALID_TEMPLATES = new Set(VALID_TEMPLATE_NAMES);
 
 // Models sometimes wrap JSON in ```json ... ``` fences despite instructions.
 // Strip them before parsing.
@@ -18,7 +21,7 @@ function stripFences(text) {
 /**
  * Parse and validate an LLM generation response.
  * @param {string} raw  The model's raw text output.
- * @returns {object} A validated recipe: {name, method, ingredients, garnish, steps, notes, balance_check}
+ * @returns {object} A validated recipe: {name, method, template, ingredients, garnish, steps, notes, balance_check, reasoning}
  * @throws {Error} if the text isn't valid JSON or doesn't match the contract.
  */
 export function parseRecipe(raw) {
@@ -39,12 +42,19 @@ export function parseRecipe(raw) {
   if (!VALID_METHODS.has(method)) {
     throw new Error(`parseRecipe: invalid method "${method}"`);
   }
+  // template is required — the LLM must always pick one of the 6 families.
+  // Third defense layer, catches anything prompt + responseSchema didn't.
+  const template = requireString(obj, 'template');
+  if (!VALID_TEMPLATES.has(template)) {
+    throw new Error(`parseRecipe: template "${template}" is not one of the 6 valid families`);
+  }
   const steps = requireString(obj, 'steps');
 
   // Optional display/quality fields (present per the contract, but tolerate absence).
   const garnish = typeof obj.garnish === 'string' ? obj.garnish : '';
   const notes = typeof obj.notes === 'string' ? obj.notes : '';
   const balance_check = typeof obj.balance_check === 'string' ? obj.balance_check : '';
+  const reasoning = typeof obj.reasoning === 'string' ? obj.reasoning : '';
 
   // Ingredients: must be a non-empty array of {name, amount, unit}.
   if (!Array.isArray(obj.ingredients) || obj.ingredients.length === 0) {
@@ -63,7 +73,7 @@ export function parseRecipe(raw) {
     return { name: ing.name, amount: ing.amount, unit: ing.unit };
   });
 
-  return { name, method, ingredients, garnish, steps, notes, balance_check };
+  return { name, method, template, ingredients, garnish, steps, notes, balance_check, reasoning };
 }
 
 function requireString(obj, key) {

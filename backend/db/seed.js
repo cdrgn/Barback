@@ -30,12 +30,13 @@ export function seedIngredients(db = openDb()) {
 
 export function seedTemplates(db = openDb()) {
   const upsert = db.prepare(`
-    INSERT INTO templates (name, display_name, default_method, structure, notes, garnish, steps)
-    VALUES (@name, @display_name, @default_method, @structure, @notes, @garnish, @steps)
+    INSERT INTO templates (name, display_name, default_method, structure, examples, notes, garnish, steps)
+    VALUES (@name, @display_name, @default_method, @structure, @examples, @notes, @garnish, @steps)
     ON CONFLICT(name) DO UPDATE SET
       display_name   = excluded.display_name,
       default_method = excluded.default_method,
       structure      = excluded.structure,
+      examples       = excluded.examples,
       notes          = excluded.notes,
       garnish        = excluded.garnish,
       steps          = excluded.steps
@@ -49,6 +50,7 @@ export function seedTemplates(db = openDb()) {
         default_method: t.default_method,
         // structure is an array of objects — stored as JSON text
         structure: JSON.stringify(t.structure),
+        examples: JSON.stringify(t.examples || []),
         notes: t.notes,
         garnish: t.garnish,
         steps: t.steps,

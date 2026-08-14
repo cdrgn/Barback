@@ -26,20 +26,28 @@ app.get('/api/ingredients', (req, res) => {
   res.json(getIngredients(db));
 });
 
-// POST /api/generate  body: { template, brief }
-// Generates a draft recipe within the chosen template. NOT saved — pouring commits it via POST /drinks.
+// POST /api/generate  body: { brief }
+// Generates a draft recipe from a flavor brief. LLM picks which of the 6 families
+// fits and composes the drink in one call. NOT saved — pouring commits it via POST /drinks.
+// The response includes `pickedTemplate` (name, display_name, reasoning) so the UI
+// can show "A custom [Family] — because...".
 // Only route that calls the LLM (the only one needing the API key).
+// (Classic pours DON'T hit this route — the frontend has the classic recipe from
+// GET /api/templates and posts it directly to /api/drinks.)
 app.post('/api/generate', async (req, res) => {
   try {
-    const { template: templateName, brief } = req.body ?? {}; // rename template property as templateName
-    if (!templateName || !brief) return res.status(400).json({ error: 'template and brief are required' });
+    const { brief } = req.body ?? {};
+    if (!brief) return res.status(400).json({ error: 'brief is required' });
 
-    const template = getTemplates(db).find((t) => t.name === templateName);
-    if (!template) return res.status(400).json({ error: `unknown template "${templateName}"` });
-
+    const templates = getTemplates(db);
     const ingredients = getIngredients(db);
-    const { recipe, attempts } = await generateValidatedDrink({ template, ingredients, brief });
-    res.json({ recipe: { ...recipe, abv: resolveRecipeAbv(db, recipe) }, attempts }); // JS object with 2 properties (recipe and attempts), send as JSON
+    const { recipe, template, attempts } = await generateValidatedDrink({ templates, ingredients, brief });
+
+    res.json({
+      recipe: { ...recipe, abv: resolveRecipeAbv(db, recipe) },
+      pickedTemplate: { name: template.name, display_name: template.display_name, reasoning: recipe.reasoning },
+      attempts,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

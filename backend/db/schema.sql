@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS templates (
   display_name   TEXT NOT NULL,           -- human label: 'Old Fashioned'
   default_method TEXT,                    -- typical prep: 'stirred'|'shaken'|'built'
   structure      TEXT,                    -- JSON: [{role,example,amount,unit}] — roles + reference ratios (rule + canonical merged)
+  examples       TEXT,                    -- JSON: [named drinks that belong to this family] — fed to LLM for classification
   notes          TEXT,                    -- prose guidance, including any "don't" warnings
   garnish        TEXT,                    -- free-text label (display only)
   steps          TEXT                     -- preparation instructions
