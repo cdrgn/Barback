@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGenerationPrompt, formatIngredients, formatTemplateMenu } from '../lib/prompt.js';
+import { buildGenerationPrompt, buildRefinePrompt, formatIngredients, formatTemplateMenu } from '../lib/prompt.js';
 
 // Minimal fake templates + ingredients so tests don't depend on the DB.
 const templates = [
@@ -81,4 +81,47 @@ test('formatTemplateMenu emits each template with its examples', () => {
 test('formatIngredients groups by category', () => {
   const out = formatIngredients(ingredients);
   assert.ok(out.includes('spirit: white rum'));
+});
+
+const currentRecipe = {
+  name: 'Smoke & Zest',
+  method: 'shaken',
+  ingredients: [
+    { name: 'white rum', amount: 2, unit: 'oz' },
+    { name: 'lime juice', amount: 0.75, unit: 'oz' },
+    { name: 'simple syrup', amount: 0.75, unit: 'oz' },
+  ],
+};
+const daiquiriTemplate = templates[0]; // has name 'daiquiri', structure, examples
+
+test('refine prompt includes the current recipe and the correction', () => {
+  const p = buildRefinePrompt({
+    template: daiquiriTemplate, currentRecipe, correction: 'too sweet, more lime', ingredients,
+  });
+  assert.ok(p.includes('Smoke & Zest'), 'missing current drink name');
+  assert.ok(p.includes('white rum'), 'missing current ingredient');
+  assert.ok(p.includes('too sweet, more lime'), 'missing correction');
+});
+
+test('refine prompt fixes the template to the parent family', () => {
+  const p = buildRefinePrompt({
+    template: daiquiriTemplate, currentRecipe, correction: 'less sweet', ingredients,
+  });
+  assert.ok(p.includes('"template": "daiquiri"'), 'template should be pinned in the contract');
+  assert.ok(p.includes('SAME family'), 'should instruct to stay in family');
+});
+
+test('refine prompt surfaces feedback on retry', () => {
+  const p = buildRefinePrompt({
+    template: daiquiriTemplate, currentRecipe, correction: 'less sweet', ingredients,
+    feedback: '- missing required role: citrus',
+  });
+  assert.ok(p.includes('PREVIOUS ATTEMPT WAS REJECTED'));
+  assert.ok(p.includes('missing required role: citrus'));
+});
+
+test('refine prompt validates its inputs', () => {
+  assert.throws(() => buildRefinePrompt({ currentRecipe, correction: 'x', ingredients }), /template/);
+  assert.throws(() => buildRefinePrompt({ template: daiquiriTemplate, correction: 'x', ingredients }), /currentRecipe/);
+  assert.throws(() => buildRefinePrompt({ template: daiquiriTemplate, currentRecipe, ingredients }), /correction/);
 });

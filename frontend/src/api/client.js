@@ -27,6 +27,16 @@ export const generate = (template, brief) =>
 export const saveDrink = (payload) =>
   request('/api/drinks', { method: 'POST', body: JSON.stringify(payload) });
 
+// POST /api/drinks/:id/refine -> { recipe (with abv), attempts }
+// Refine a poured drink from a correction note. Returns a fresh DRAFT (not saved).
+export const refine = (id, correction) =>
+  request(`/api/drinks/${id}/refine`, { method: 'POST', body: JSON.stringify({ correction }) });
+
+// PATCH /api/drinks/:id -> the updated drink
+// Mark (or unmark) a drink as the dialed-in keeper.
+export const markFinal = (id, is_final = true) =>
+  request(`/api/drinks/${id}`, { method: 'PATCH', body: JSON.stringify({ is_final }) });
+
 // GET /api/drinks -> history list (roots only)
 export const fetchHistory = () => request('/api/drinks');
 

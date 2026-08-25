@@ -3,7 +3,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { openDb } from './db/init.js';
-import { generateValidatedDrink } from './lib/generate.js';
+import { generateValidatedDrink, generateValidatedRefinement } from './lib/generate.js';
 import {
   getTemplates, getIngredients, getDrink, getHistory, getLineage,
   saveDrink, templateToRecipe, resolveRecipeAbv,
@@ -52,6 +52,38 @@ app.post('/api/generate', async (req, res) => {
       pickedTemplate: { name: template.name, display_name: template.display_name, reasoning: recipe.reasoning },
       attempts,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/drinks/:id/refine  body: { correction }
+// Refines an already-poured drink from a correction note ("too sweet, more citrus").
+// Produces a fresh full recipe in the SAME family as the parent — NOT saved; the
+// host pours it via POST /drinks with parentId set to this drink's id, which links
+// the refinement as a child version in the lineage.
+// Response mirrors /api/generate: { recipe (with abv), attempts }.
+app.post('/api/drinks/:id/refine', async (req, res) => {
+  try {
+    const { correction } = req.body ?? {};
+    if (!correction) return res.status(400).json({ error: 'correction is required' });
+
+    const parent = getDrink(db, Number(req.params.id));
+    if (!parent) return res.status(404).json({ error: 'drink not found' });
+
+    // The parent stores its template name; look up the full template object.
+    const template = getTemplates(db).find((t) => t.name === parent.template);
+    if (!template) return res.status(400).json({ error: `unknown template "${parent.template}"` });
+
+    const ingredients = getIngredients(db);
+    const { recipe, attempts } = await generateValidatedRefinement({
+      template,
+      currentRecipe: parent,
+      correction,
+      ingredients,
+    });
+
+    res.json({ recipe: { ...recipe, abv: resolveRecipeAbv(db, recipe) }, attempts });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

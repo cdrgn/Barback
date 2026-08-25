@@ -51,6 +51,14 @@ function formatIngredients(ingredients) {
 //   - a few named example drinks in that family — the key to correct picks,
 //     so "make me a mojito" picks daiquiri (mojito is a daiquiri variant),
 //     not whisky_highball (which only structurally resembles it via soda).
+// Render a template's `structure` as reference proportions: one line per role,
+// with an example ingredient and the verified amount — the balance guide.
+function formatStructure(structure) {
+  return structure
+    .map((s) => `- ${s.role} (e.g. ${s.example}): ${s.amount} ${s.unit}`)
+    .join('\n');
+}
+
 function formatTemplateMenu(templates) {
   return templates.map((t) => {
     const examples = t.examples?.length ? `\n    Examples: ${t.examples.join(', ')}.` : '';
@@ -104,6 +112,78 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
   "template": "one of: ${VALID_TEMPLATE_NAMES.join(' | ')}",
   "reasoning": "string — one short sentence on why this template fits the brief",
   "name": "string — the cocktail's name",
+  "method": "stirred | shaken | built | none",
+  "ingredients": [
+    { "name": "must match an allowed ingredient", "amount": 0, "unit": "oz | dash | barspoon | tsp | whole" }
+  ],
+  "garnish": "string — free text",
+  "steps": "string — preparation instructions",
+  "description": "string — a short description of this drink's flavor profile, to show the host",
+  "balance_check": "string — one line accounting for backbone/acid/sweet/bitter and confirming balance"
+}`;
+}
+
+// Render a poured drink's current recipe as readable lines — the starting point
+// a refinement adjusts from.
+function formatCurrentRecipe(recipe) {
+  const lines = recipe.ingredients
+    .map((i) => `- ${i.name}: ${i.amount} ${i.unit}`)
+    .join('\n');
+  return `${recipe.name} (${recipe.method})\n${lines}`;
+}
+
+/**
+ * Build a REFINE prompt: given a drink the host already made and a correction
+ * ("too sweet, more citrus"), produce a full improved recipe in the SAME family.
+ * Unlike an in-glass fix, this is a fresh remake — the host pours a new drink —
+ * so all the usual balance/dilution rules apply normally. The template is fixed
+ * (a refined daiquiri is still a daiquiri); the model must not switch families.
+ * @param {object} args
+ * @param {object} args.template     The parent drink's template (with structure).
+ * @param {object} args.currentRecipe  The poured drink being refined {name,method,ingredients}.
+ * @param {string} args.correction   What the host wants changed.
+ * @param {Array<object>} args.ingredients  The allowed palette.
+ * @param {string} [args.feedback]   On a retry, validator errors to fix.
+ * @returns {string} the full prompt text.
+ */
+export function buildRefinePrompt({ template, currentRecipe, correction, ingredients, feedback = '' }) {
+  if (!template) throw new Error('buildRefinePrompt: template is required');
+  if (!currentRecipe) throw new Error('buildRefinePrompt: currentRecipe is required');
+  if (!correction) throw new Error('buildRefinePrompt: correction is required');
+  if (!ingredients?.length) throw new Error('buildRefinePrompt: ingredients are required');
+
+  const feedbackBlock = feedback
+    ? `\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix these problems:\n${feedback}\n`
+    : '';
+
+  return `You are an expert bartender refining a cocktail the host already made.
+
+This is a REMAKE, not an in-glass adjustment — the host will make a fresh drink
+from your recipe. Keep it in the SAME family (${template.display_name}); do not
+switch templates. Make the smallest change that addresses the host's note, keeping
+everything else that already worked.
+
+THE DRINK SO FAR:
+${formatCurrentRecipe(currentRecipe)}
+
+Reference proportions for the ${template.display_name} family (a balance guide):
+${formatStructure(template.structure)}
+
+WHAT THE HOST WANTS CHANGED:
+${correction}
+
+ALLOWED INGREDIENTS (use ONLY these; do not invent others):
+${formatIngredients(ingredients)}
+${feedbackBlock}
+Produce the full improved recipe. Account for backbone, acid, sweetness, dilution,
+and any bitter/aromatic accent — confirm the proportions are still balanced after
+your change.
+
+Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
+{
+  "template": "${template.name}",
+  "reasoning": "string — one short sentence on what you changed and why",
+  "name": "string — keep the drink's name unless the change is dramatic",
   "method": "stirred | shaken | built | none",
   "ingredients": [
     { "name": "must match an allowed ingredient", "amount": 0, "unit": "oz | dash | barspoon | tsp | whole" }

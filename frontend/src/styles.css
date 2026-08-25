@@ -305,3 +305,15 @@ button { font-family: inherit; }
   margin-left: var(--sp-3);
   color: var(--border);
 }
+
+/* the "★ Marked as final" badge shown on a poured drink that's been keepered */
+.recipe-final-badge {
+  text-align: center;
+  color: var(--gold-bright);
+  font-weight: 600;
+  margin: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--gold);
+  border-radius: var(--r-2);
+  background: rgba(212, 165, 90, 0.08);
+}

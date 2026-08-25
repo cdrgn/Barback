@@ -1,4 +1,4 @@
-// Renders a recipe (draft or saved). Layout, top to bottom:
+// Renders a recipe (draft or poured). Layout, top to bottom:
 //   title
 //   description (italic prose — always shown if present)
 //   attribution box ("A custom [Family] — because..." — generated drinks only)
@@ -7,11 +7,15 @@
 //   INSTRUCTIONS section
 //   footer: ABV · method · attempts
 //
-// Section labels share the same greyed-uppercase style as the app's other
-// labels ("Choose a classic to make"), keeping one design language across the app.
-//
-// `onPour` and `onDiscard` are only shown when the recipe is a DRAFT (not yet saved).
-export default function RecipeView({ recipe, attempts, pickedTemplate, onPour, onDiscard, pouring }) {
+// Two action modes at the bottom, driven by which callbacks are passed:
+//   DRAFT  (onPour):    [Pour it] [Discard, try again]
+//   POURED (onRefine):  [Refine this drink] [Mark as final] [New drink]
+// A recipe with neither is display-only (no buttons).
+export default function RecipeView({
+  recipe, attempts, pickedTemplate,
+  onPour, onDiscard, pouring,
+  onRefine, onMarkFinal, onNew, isFinal,
+}) {
   return (
     <article className="recipe">
       <h2 className="recipe-name">{recipe.name}</h2>
@@ -63,6 +67,7 @@ export default function RecipeView({ recipe, attempts, pickedTemplate, onPour, o
         </span>
       </div>
 
+      {/* DRAFT actions */}
       {onPour && (
         <div className="stack" style={{ marginTop: 'var(--sp-4)' }}>
           <button className="button" onClick={onPour} disabled={pouring}>
@@ -72,6 +77,23 @@ export default function RecipeView({ recipe, attempts, pickedTemplate, onPour, o
             <button className="button secondary" onClick={onDiscard} disabled={pouring}>
               Discard, try again
             </button>
+          )}
+        </div>
+      )}
+
+      {/* POURED actions */}
+      {onRefine && (
+        <div className="stack" style={{ marginTop: 'var(--sp-4)' }}>
+          {isFinal ? (
+            <p className="recipe-final-badge">★ Marked as final</p>
+          ) : (
+            <>
+              <button className="button" onClick={onRefine}>Refine this drink</button>
+              <button className="button secondary" onClick={onMarkFinal}>Mark as final</button>
+            </>
+          )}
+          {onNew && (
+            <button className="button secondary" onClick={onNew}>New drink</button>
           )}
         </div>
       )}

@@ -1,118 +1,204 @@
 import { useEffect, useState } from 'react';
 import TemplatePicker from './components/TemplatePicker.jsx';
 import BriefInput from './components/BriefInput.jsx';
+import CorrectionInput from './components/CorrectionInput.jsx';
 import RecipeView from './components/RecipeView.jsx';
-import { fetchTemplates, generate, saveDrink } from './api/client.js';
+import { fetchTemplates, generate, saveDrink, refine, markFinal } from './api/client.js';
 
-// Parallel-paths layout — both options visible from the start:
-//   1. Pick a classic template card (top section) → shows the canonical recipe.
-//   2. Describe what you want (bottom section) → LLM picks the family AND
-//      composes the drink in one open-mode call.
-// Either way, the recipe lives in state as a DRAFT until Pour is tapped
-// (pour-as-commit: nothing hits the DB until then).
+// The app moves through a few phases:
+//   'home'    — pick a classic or describe a custom drink
+//   'draft'   — a recipe is composed but NOT poured; [Pour] / [Discard]
+//   'poured'  — the drink is saved; [Refine] / [Mark final] / [New drink]
+//   'refining'— entering a correction note to produce the next version
+//
+// The refine loop: poured → refining → draft(child) → poured(child) → … until
+// the host marks a version final or starts a new drink. Each poured version is a
+// child of the previous one (parentId), forming the lineage.
 export default function App() {
   const [templates, setTemplates] = useState([]);
+  const [phase, setPhase] = useState('home');
+
   const [brief, setBrief] = useState('');
-  // draft = { recipe, source, template, pickedTemplate?, attempts? }
-  const [draft, setDraft] = useState(null);
-  const [generating, setGenerating] = useState(false);
-  const [pouring, setPouring] = useState(false);
+
+  // the working recipe (draft or poured) + how it was made
+  //   draft:  { recipe, source, template?, pickedTemplate?, attempts, parentId?, parent?, correction? }
+  //   poured: adds { id, is_final }
+  const [current, setCurrent] = useState(null);
+
+  const [correction, setCorrection] = useState('');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchTemplates()
-      .then(setTemplates)
-      .catch((e) => setError(e.message));
+    fetchTemplates().then(setTemplates).catch((e) => setError(e.message));
   }, []);
 
+  // ---- home → draft ----
   function chooseClassic(t) {
-    // The classic recipe is already on the template (server-derived).
     setError('');
-    setDraft({ recipe: t.classic, source: 'classic', template: t });
+    setCurrent({ recipe: t.classic, source: 'classic', template: t });
+    setPhase('draft');
   }
 
   async function handleGenerate() {
     setError('');
-    setGenerating(true);
+    setBusy(true);
     try {
-      // OPEN mode: no template — the LLM picks one from the brief.
       const result = await generate(null, brief);
-      setDraft({
+      setCurrent({
         recipe: result.recipe,
         source: 'generated',
-        pickedTemplate: result.pickedTemplate,   // { name, display_name, reasoning }
+        pickedTemplate: result.pickedTemplate,
         attempts: result.attempts,
       });
+      setPhase('draft');
     } catch (e) {
       setError(e.message);
     } finally {
-      setGenerating(false);
+      setBusy(false);
     }
   }
 
+  // ---- draft → poured ----
   async function handlePour() {
     setError('');
-    setPouring(true);
+    setBusy(true);
     try {
-      // For classics, the template comes from what the host picked; for open
-      // generation, from what the LLM picked (already on the recipe).
-      const templateName = draft.source === 'classic'
-        ? draft.template.name
-        : draft.pickedTemplate.name;
-      await saveDrink({
-        recipe: draft.recipe,
+      const templateName = current.source === 'classic'
+        ? current.template.name
+        : current.pickedTemplate.name;
+      const saved = await saveDrink({
+        recipe: current.recipe,
         template: templateName,
-        source: draft.source,
-        brief: draft.source === 'generated' ? brief : null,
+        source: current.source,
+        brief: current.source === 'generated' ? brief : null,
+        parentId: current.parentId ?? null,
+        correction: current.correction ?? null,
       });
-      setDraft(null);
-      setBrief('');
+      setCurrent({
+        ...current,
+        recipe: saved,
+        id: saved.id,
+        is_final: !!saved.is_final,
+      });
+      setPhase('poured');
     } catch (e) {
       setError(e.message);
     } finally {
-      setPouring(false);
+      setBusy(false);
     }
   }
 
-  // While a draft is showing, only the recipe view is on screen — cleaner.
-  if (draft) {
+  function discardDraft() {
+    if (current?.parent) {
+      setCurrent(current.parent);
+      setPhase('poured');
+    } else {
+      resetToHome();
+    }
+  }
+
+  // ---- poured → refining ----
+  function startRefine() {
+    setError('');
+    setCorrection('');
+    setPhase('refining');
+  }
+
+  async function handleRefine() {
+    setError('');
+    setBusy(true);
+    try {
+      const result = await refine(current.id, correction);
+      setCurrent({
+        recipe: result.recipe,
+        source: 'generated',
+        attempts: result.attempts,
+        pickedTemplate: current.pickedTemplate
+          ?? { name: current.recipe.template, display_name: current.template?.display_name },
+        parentId: current.id,
+        parent: current,
+        correction,
+      });
+      setPhase('draft');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ---- poured → final ----
+  async function handleMarkFinal() {
+    setError('');
+    setBusy(true);
+    try {
+      const updated = await markFinal(current.id, true);
+      setCurrent({ ...current, is_final: !!updated.is_final });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function resetToHome() {
+    setCurrent(null);
+    setBrief('');
+    setCorrection('');
+    setPhase('home');
+  }
+
+  const header = (
+    <header className="app-header">
+      <h1 className="app-title">Barback</h1>
+      <p className="app-subtitle">A hand at the bar.</p>
+    </header>
+  );
+
+  if (phase === 'draft' || phase === 'poured' || phase === 'refining') {
+    const poured = phase === 'poured';
     return (
       <div className="app">
-        <header className="app-header">
-          <h1 className="app-title">Barback</h1>
-          <p className="app-subtitle">A hand at the bar.</p>
-        </header>
+        {header}
         {error && <div className="error">{error}</div>}
+
         <RecipeView
-          recipe={draft.recipe}
-          attempts={draft.attempts}
-          pickedTemplate={draft.pickedTemplate}
-          onPour={handlePour}
-          onDiscard={() => setDraft(null)}
-          pouring={pouring}
+          recipe={current.recipe}
+          attempts={current.attempts}
+          pickedTemplate={current.pickedTemplate}
+          onPour={phase === 'draft' ? handlePour : undefined}
+          onDiscard={phase === 'draft' ? discardDraft : undefined}
+          pouring={busy}
+          onRefine={poured ? startRefine : undefined}
+          onMarkFinal={poured ? handleMarkFinal : undefined}
+          onNew={poured ? resetToHome : undefined}
+          isFinal={current.is_final}
         />
+
+        {phase === 'refining' && (
+          <div style={{ marginTop: 'var(--sp-4)' }}>
+            <CorrectionInput
+              correction={correction}
+              onChange={setCorrection}
+              onSubmit={handleRefine}
+              onCancel={() => setPhase('poured')}
+              refining={busy}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="app">
-      <header className="app-header">
-        <h1 className="app-title">Barback</h1>
-        <p className="app-subtitle">A hand at the bar.</p>
-      </header>
-
+      {header}
       <div className="stack">
         {error && <div className="error">{error}</div>}
 
-        {/* Section 1 — pick a classic */}
-        <TemplatePicker
-          templates={templates}
-          selectedName={null}
-          onSelect={chooseClassic}
-        />
+        <TemplatePicker templates={templates} selectedName={null} onSelect={chooseClassic} />
 
-        {/* Section 2 — describe a custom cocktail; LLM picks the family */}
         <div>
           <p className="section-label">Or describe what you want</p>
           <BriefInput
@@ -120,7 +206,7 @@ export default function App() {
             onChange={setBrief}
             onSubmit={handleGenerate}
             disabled={!brief.trim()}
-            generating={generating}
+            generating={busy}
           />
         </div>
       </div>
