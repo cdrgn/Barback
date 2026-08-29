@@ -65,14 +65,41 @@ export function getDrink(db, id) {
   return drink;
 }
 
-// History: the root drink of each lineage, newest first.
+// History: the root drink of each lineage, newest first. Because refinements
+// are children, a lineage's "final" version is usually NOT the root — so we
+// walk each root's descendants to answer two things per lineage:
+//   has_final    — is ANY version in the lineage marked final?
+//   version_count — how many versions total (root + refinements)?
+// This keeps the history row honest ("★" and "3 versions") without the client
+// having to fetch every lineage up front.
 export function getHistory(db) {
-  return db.prepare(`
-    SELECT id, name, template, source, abv, is_final, created_at
+  const roots = db.prepare(`
+    SELECT id, name, template, source, abv, created_at
     FROM drinks
     WHERE parent_drink_id IS NULL
     ORDER BY created_at DESC
   `).all();
+
+  // For each root, walk its lineage counting versions and checking for a final.
+  const childrenOf = db.prepare('SELECT id, is_final FROM drinks WHERE parent_drink_id = ?');
+  for (const root of roots) {
+    let count = 0;
+    let hasFinal = false;
+    // breadth-first over the (linear, in phase 1) chain
+    let frontier = [{ id: root.id, is_final: db.prepare('SELECT is_final FROM drinks WHERE id = ?').get(root.id).is_final }];
+    while (frontier.length) {
+      const next = [];
+      for (const node of frontier) {
+        count += 1;
+        if (node.is_final) hasFinal = true;
+        for (const child of childrenOf.all(node.id)) next.push(child);
+      }
+      frontier = next;
+    }
+    root.version_count = count;
+    root.has_final = hasFinal;
+  }
+  return roots;
 }
 
 // All templates, with their JSON structure parsed back into an array.

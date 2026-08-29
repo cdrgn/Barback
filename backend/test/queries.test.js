@@ -39,7 +39,7 @@ test('saveDrink saves a drink and its ingredients, with a computed ABV', () => {
   assert.equal(drink.garnish, 'lime wheel');
 });
 
-test('history returns root drinks only, not children adjustments', () => {
+test('history returns root drinks only, not in-glass children', () => {
   const db = makeDb();
   const rootId = saveDrink(db, { recipe: daiquiriRecipe, template: 'daiquiri' });
   // a child version (in-glass fix) descends from the root
@@ -84,4 +84,17 @@ test('getLineage returns all versions oldest-first from any version', () => {
   assert.equal(lineage.length, 2);
   assert.equal(lineage[0].id, rootId, 'root should be first');
   assert.equal(lineage[1].id, childId, 'child should follow');
+});
+
+test('history reports version_count and has_final across the lineage', () => {
+  const db = makeDb();
+  const rootId = saveDrink(db, { recipe: daiquiriRecipe, template: 'daiquiri' });
+  const childId = saveDrink(db, { recipe: daiquiriRecipe, template: 'daiquiri', parentId: rootId, correction: 'too sweet' });
+  // mark the CHILD final, not the root
+  db.prepare('UPDATE drinks SET is_final = 1 WHERE id = ?').run(childId);
+
+  const history = getHistory(db);
+  assert.equal(history.length, 1, 'one lineage');
+  assert.equal(history[0].version_count, 2, 'root + one refinement');
+  assert.equal(history[0].has_final, true, 'a later version is final');
 });

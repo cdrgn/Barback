@@ -3,37 +3,49 @@ import TemplatePicker from './components/TemplatePicker.jsx';
 import BriefInput from './components/BriefInput.jsx';
 import CorrectionInput from './components/CorrectionInput.jsx';
 import RecipeView from './components/RecipeView.jsx';
-import { fetchTemplates, generate, saveDrink, refine, markFinal } from './api/client.js';
+import HistoryList from './components/HistoryList.jsx';
+import LineageView from './components/LineageView.jsx';
+import {
+  fetchTemplates, generate, saveDrink, refine, markFinal,
+  fetchHistory, fetchLineage,
+} from './api/client.js';
 
-// The app moves through a few phases:
-//   'home'    — pick a classic or describe a custom drink
-//   'draft'   — a recipe is composed but NOT poured; [Pour] / [Discard]
-//   'poured'  — the drink is saved; [Refine] / [Mark final] / [New drink]
-//   'refining'— entering a correction note to produce the next version
+// Two top-level tabs: MAKE and HISTORY.
 //
-// The refine loop: poured → refining → draft(child) → poured(child) → … until
-// the host marks a version final or starts a new drink. Each poured version is a
-// child of the previous one (parentId), forming the lineage.
+// MAKE moves through phases:
+//   'home' -> 'draft' -> 'poured' -> 'refining' -> 'draft'(child) -> ...
+//   The refine loop links each poured version to its parent (lineage).
+//
+// HISTORY moves through:
+//   'list' (past drinks) -> 'lineage' (one drink's stacked versions).
 export default function App() {
+  const [tab, setTab] = useState('make');
   const [templates, setTemplates] = useState([]);
-  const [phase, setPhase] = useState('home');
-
-  const [brief, setBrief] = useState('');
-
-  // the working recipe (draft or poured) + how it was made
-  //   draft:  { recipe, source, template?, pickedTemplate?, attempts, parentId?, parent?, correction? }
-  //   poured: adds { id, is_final }
-  const [current, setCurrent] = useState(null);
-
-  const [correction, setCorrection] = useState('');
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // MAKE state
+  const [phase, setPhase] = useState('home');
+  const [brief, setBrief] = useState('');
+  const [current, setCurrent] = useState(null);
+  const [correction, setCorrection] = useState('');
+
+  // HISTORY state
+  const [historyPhase, setHistoryPhase] = useState('list');
+  const [history, setHistory] = useState([]);
+  const [lineage, setLineage] = useState(null);
 
   useEffect(() => {
     fetchTemplates().then(setTemplates).catch((e) => setError(e.message));
   }, []);
 
-  // ---- home → draft ----
+  useEffect(() => {
+    if (tab === 'history' && historyPhase === 'list') {
+      fetchHistory().then(setHistory).catch((e) => setError(e.message));
+    }
+  }, [tab, historyPhase]);
+
+  // ===== MAKE handlers =====
   function chooseClassic(t) {
     setError('');
     setCurrent({ recipe: t.classic, source: 'classic', template: t });
@@ -41,28 +53,19 @@ export default function App() {
   }
 
   async function handleGenerate() {
-    setError('');
-    setBusy(true);
+    setError(''); setBusy(true);
     try {
       const result = await generate(null, brief);
       setCurrent({
-        recipe: result.recipe,
-        source: 'generated',
-        pickedTemplate: result.pickedTemplate,
-        attempts: result.attempts,
+        recipe: result.recipe, source: 'generated',
+        pickedTemplate: result.pickedTemplate, attempts: result.attempts,
       });
       setPhase('draft');
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
-  // ---- draft → poured ----
   async function handlePour() {
-    setError('');
-    setBusy(true);
+    setError(''); setBusy(true);
     try {
       const templateName = current.source === 'classic'
         ? current.template.name
@@ -75,80 +78,57 @@ export default function App() {
         parentId: current.parentId ?? null,
         correction: current.correction ?? null,
       });
-      setCurrent({
-        ...current,
-        recipe: saved,
-        id: saved.id,
-        is_final: !!saved.is_final,
-      });
+      setCurrent({ ...current, recipe: saved, id: saved.id, is_final: !!saved.is_final });
       setPhase('poured');
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
   function discardDraft() {
-    if (current?.parent) {
-      setCurrent(current.parent);
-      setPhase('poured');
-    } else {
-      resetToHome();
-    }
+    if (current?.parent) { setCurrent(current.parent); setPhase('poured'); }
+    else { resetToHome(); }
   }
 
-  // ---- poured → refining ----
-  function startRefine() {
-    setError('');
-    setCorrection('');
-    setPhase('refining');
-  }
+  function startRefine() { setError(''); setCorrection(''); setPhase('refining'); }
 
   async function handleRefine() {
-    setError('');
-    setBusy(true);
+    setError(''); setBusy(true);
     try {
       const result = await refine(current.id, correction);
       setCurrent({
-        recipe: result.recipe,
-        source: 'generated',
-        attempts: result.attempts,
+        recipe: result.recipe, source: 'generated', attempts: result.attempts,
         pickedTemplate: current.pickedTemplate
           ?? { name: current.recipe.template, display_name: current.template?.display_name },
-        parentId: current.id,
-        parent: current,
-        correction,
+        parentId: current.id, parent: current, correction,
       });
       setPhase('draft');
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
-  // ---- poured → final ----
   async function handleMarkFinal() {
-    setError('');
-    setBusy(true);
+    setError(''); setBusy(true);
     try {
       const updated = await markFinal(current.id, true);
       setCurrent({ ...current, is_final: !!updated.is_final });
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
   function resetToHome() {
-    setCurrent(null);
-    setBrief('');
-    setCorrection('');
-    setPhase('home');
+    setCurrent(null); setBrief(''); setCorrection(''); setPhase('home');
   }
 
+  // ===== HISTORY handlers =====
+  async function openLineage(id) {
+    setError('');
+    try {
+      const versions = await fetchLineage(id);
+      setLineage(versions);
+      setHistoryPhase('lineage');
+    } catch (e) { setError(e.message); }
+  }
+
+  function backToHistory() { setLineage(null); setHistoryPhase('list'); }
+
+  // ===== render =====
   const header = (
     <header className="app-header">
       <h1 className="app-title">Barback</h1>
@@ -156,11 +136,40 @@ export default function App() {
     </header>
   );
 
+  const tabs = (
+    <div className="tabs">
+      <button
+        className={`tab ${tab === 'make' ? 'active' : ''}`}
+        onClick={() => setTab('make')}
+      >Make</button>
+      <button
+        className={`tab ${tab === 'history' ? 'active' : ''}`}
+        onClick={() => { setTab('history'); setHistoryPhase('list'); }}
+      >History</button>
+    </div>
+  );
+
+  // ---- HISTORY tab ----
+  if (tab === 'history') {
+    return (
+      <div className="app">
+        {header}
+        {tabs}
+        {error && <div className="error">{error}</div>}
+        {historyPhase === 'lineage' && lineage
+          ? <LineageView versions={lineage} onBack={backToHistory} />
+          : <HistoryList drinks={history} onOpen={openLineage} />}
+      </div>
+    );
+  }
+
+  // ---- MAKE tab: draft / poured / refining ----
   if (phase === 'draft' || phase === 'poured' || phase === 'refining') {
     const poured = phase === 'poured';
     return (
       <div className="app">
         {header}
+        {tabs}
         {error && <div className="error">{error}</div>}
 
         <RecipeView
@@ -191,14 +200,14 @@ export default function App() {
     );
   }
 
+  // ---- MAKE tab: home ----
   return (
     <div className="app">
       {header}
+      {tabs}
       <div className="stack">
         {error && <div className="error">{error}</div>}
-
         <TemplatePicker templates={templates} selectedName={null} onSelect={chooseClassic} />
-
         <div>
           <p className="section-label">Or describe what you want</p>
           <BriefInput
