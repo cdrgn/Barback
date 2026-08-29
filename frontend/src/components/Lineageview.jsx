@@ -32,11 +32,9 @@ export default function LineageView({ versions, onBack }) {
 
   return (
     <div>
-      <button className="button secondary" onClick={onBack} style={{ marginBottom: 'var(--sp-4)' }}>
-        ← Back to history
-      </button>
+      <button className="back-link" onClick={onBack}>← All drinks</button>
 
-      <h2 className="recipe-name" style={{ marginBottom: 'var(--sp-4)' }}>{title}</h2>
+      <h2 className="recipe-name" style={{ margin: 'var(--sp-2) 0 var(--sp-4)' }}>{title}</h2>
 
       <div className="lineage">
         {versions.map((v, i) => (

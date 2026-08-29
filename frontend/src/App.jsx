@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import TemplatePicker from './components/TemplatePicker.jsx';
 import BriefInput from './components/BriefInput.jsx';
-import CorrectionInput from './components/CorrectionInput.jsx';
 import RecipeView from './components/RecipeView.jsx';
 import HistoryList from './components/HistoryList.jsx';
 import LineageView from './components/LineageView.jsx';
@@ -33,7 +32,6 @@ export default function App() {
   const [view, setView] = useState('home');     // home | classic | generated
   const [brief, setBrief] = useState('');
   const [current, setCurrent] = useState(null);  // the drink on screen
-  const [refining, setRefining] = useState(false);
   const [correction, setCorrection] = useState('');
 
   // HISTORY state
@@ -83,7 +81,6 @@ export default function App() {
   }
 
   // Refine the current drink → save child → land on it.
-  function startRefine() { setError(''); setCorrection(''); setRefining(true); }
 
   async function handleRefine() {
     setError(''); setBusy(true);
@@ -103,7 +100,7 @@ export default function App() {
         attempts: result.attempts,
         is_final: !!saved.is_final,
       });
-      setRefining(false);
+      setCorrection('');
       setView('generated');
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
@@ -117,7 +114,7 @@ export default function App() {
   }
 
   function startOver() {
-    setCurrent(null); setBrief(''); setCorrection(''); setRefining(false); setView('home');
+    setCurrent(null); setBrief(''); setCorrection(''); setView('home');
   }
 
   // ===== HISTORY =====
@@ -182,23 +179,15 @@ export default function App() {
           recipe={current.recipe}
           attempts={current.attempts}
           pickedTemplate={current.pickedTemplate}
-          onRefine={startRefine}
-          onStartOver={startOver}
+          onBack={startOver}
           onToggleFavorite={toggleFavorite}
           isFavorite={current.is_final}
+          correction={correction}
+          onCorrectionChange={setCorrection}
+          onRefine={handleRefine}
+          refining={busy}
           busy={busy}
         />
-        {refining && (
-          <div style={{ marginTop: 'var(--sp-4)' }}>
-            <CorrectionInput
-              correction={correction}
-              onChange={setCorrection}
-              onSubmit={handleRefine}
-              onCancel={() => setRefining(false)}
-              refining={busy}
-            />
-          </div>
-        )}
       </div>
     );
   }

@@ -1,6 +1,7 @@
-// The "what would you change?" input shown when refining a poured drink.
-// Controlled input — parent owns the value. Mirrors BriefInput but worded for
-// a correction rather than a fresh brief.
+import LoadingDots from './LoadingDots.jsx';
+
+// The "what would you change?" input shown when refining a drink. Controlled
+// input — parent owns the value. Shows animated feedback while refining.
 export default function CorrectionInput({ correction, onChange, onSubmit, onCancel, refining }) {
   return (
     <div>
@@ -17,7 +18,7 @@ export default function CorrectionInput({ correction, onChange, onSubmit, onCanc
           onClick={onSubmit}
           disabled={!correction.trim() || refining}
         >
-          {refining ? 'Refining…' : 'Refine it'}
+          {refining ? <LoadingDots label="Refining" /> : 'Refine it'}
         </button>
         <button className="button secondary" onClick={onCancel} disabled={refining}>
           Cancel

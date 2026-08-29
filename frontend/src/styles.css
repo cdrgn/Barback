@@ -429,3 +429,33 @@ button { font-family: inherit; }
   border-top: 1px solid var(--border);
 }
 .version-body .recipe-ingredients { margin-top: var(--sp-3); }
+
+/* animated loading dots (long generation waits) */
+.loading-dots {
+  display: inline-block;
+  min-width: 1.5em;
+  text-align: left;
+  letter-spacing: 0.1em;
+}
+
+/* a button in the "pressed"/active state — used for the Refine toggle when its
+   correction box is open, so it reads as engaged rather than a fresh action */
+.button.active {
+  background: var(--surface-hi);
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  box-shadow: inset 0 0 16px -6px var(--glow);
+}
+
+/* subtle inline back link (history lineage) — deliberately NOT a full button,
+   to sit quietly under the tab bar rather than competing with it */
+.back-link {
+  background: none;
+  border: none;
+  color: var(--gold-dim);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: var(--sp-1) 0;
+  transition: color 0.2s;
+}
+.back-link:hover { color: var(--gold-bright); }

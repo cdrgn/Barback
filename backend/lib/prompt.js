@@ -108,7 +108,7 @@ dilution, and any bitter/aromatic accent — confirm the proportions are balance
 Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
 {
   "template": "one of: ${VALID_TEMPLATE_NAMES.join(' | ')}",
-  "reasoning": "string — one short sentence on why this template fits the brief",
+  "reasoning": "ONE short clause on why it fits — do NOT name the template/family (the UI already shows it)",
   "name": "string — the cocktail's name",
   "method": "stirred | shaken | built | none",
   "ingredients": [
@@ -116,7 +116,7 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
   ],
   "garnish": "string — free text",
   "steps": "string — preparation instructions",
-  "description": "string — a short description of this drink's flavor profile, to show the host"
+  "description": "ONE or two sentences describing this drink's flavor, for the host"
 }`;
 }
 
@@ -179,7 +179,7 @@ your change.
 Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
 {
   "template": "${template.name}",
-  "reasoning": "string — one short sentence on what you changed and why",
+  "reasoning": "ONE short clause on what you changed — do NOT restate the drink or family name",
   "name": "string — keep the drink's name unless the change is dramatic",
   "method": "stirred | shaken | built | none",
   "ingredients": [
@@ -187,7 +187,7 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
   ],
   "garnish": "string — free text",
   "steps": "string — preparation instructions",
-  "description": "string — a short description of this drink's flavor profile, to show the host"
+  "description": "ONE or two sentences describing this drink's flavor, for the host"
 }`;
 }
 
