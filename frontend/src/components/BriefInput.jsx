@@ -4,7 +4,6 @@
 export default function BriefInput({ brief, onChange, onSubmit, disabled, generating }) {
   return (
     <div>
-      <p className="section-label">What would they like?</p>
       <textarea
         className="brief-input"
         placeholder="e.g. smoky, citrusy, on the drier side"

@@ -7,13 +7,11 @@
 // (safety net), and Gemini's responseSchema enum (structural constraint).
 //
 // OUTPUT CONTRACT (what the model must return):
-//   { template, reasoning, name, method, ingredients:[{name,amount,unit}], garnish, steps, description, balance_check }
+//   { template, reasoning, name, method, ingredients:[{name,amount,unit}], garnish, steps, description }
 // The recipe fields (name, method, ingredients, garnish, steps) match a poured (saved)
 // drink's shape, so the SAME pour-writer handles generated drinks and classics.
 // `template` names the picked family (one of the 6). `reasoning` explains the pick.
 // `description` is a short flavor-profile description shown to the host.
-// `balance_check` is the quality lever: forcing the model to account for the
-// drink's structure catches lopsided results, and it feeds the validator (step 8).
 
 // The 6 valid template names — the enum both the prompt and the parser enforce.
 // Exported so llm.js can pass it to responseSchema and parse.js can validate.
@@ -118,8 +116,7 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
   ],
   "garnish": "string — free text",
   "steps": "string — preparation instructions",
-  "description": "string — a short description of this drink's flavor profile, to show the host",
-  "balance_check": "string — one line accounting for backbone/acid/sweet/bitter and confirming balance"
+  "description": "string — a short description of this drink's flavor profile, to show the host"
 }`;
 }
 
@@ -190,8 +187,7 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
   ],
   "garnish": "string — free text",
   "steps": "string — preparation instructions",
-  "description": "string — a short description of this drink's flavor profile, to show the host",
-  "balance_check": "string — one line accounting for backbone/acid/sweet/bitter and confirming balance"
+  "description": "string — a short description of this drink's flavor profile, to show the host"
 }`;
 }
 

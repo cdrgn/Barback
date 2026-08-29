@@ -1,18 +1,23 @@
 import { useState } from 'react';
 import VersionRow from './VersionRow.jsx';
 
-// The full lineage of a drink, stacked oldest → newest. The final version (or,
-// if none is marked final, the latest) starts expanded; the rest are collapsed
-// so the convergence story reads top-to-bottom without three full recipes at once.
-// Any row can be toggled independently.
+// The full lineage of a drink, stacked oldest → newest. The favorite version
+// (or, if none, the latest) starts expanded; the rest collapsed, so the
+// convergence story reads top-to-bottom. Any row toggles independently.
+//
+// Correction placement: each version stores the correction that PRODUCED it
+// (so it lives on the child). But it reads better as "what the host said about
+// THIS version" — so we shift each version's correction onto its PARENT. The
+// last version has no note (it's the keeper, nothing was wrong with it yet).
 export default function LineageView({ versions, onBack }) {
-  // index of the version that should be open by default
+  // note about version i = correction stored on version i+1 (its child)
+  const noteFor = (i) => versions[i + 1]?.correction ?? null;
+
   const defaultOpen = (() => {
     const finalIdx = versions.findIndex((v) => v.is_final);
     return finalIdx !== -1 ? finalIdx : versions.length - 1;
   })();
 
-  // a Set of open indices (multiple can be open)
   const [open, setOpen] = useState(() => new Set([defaultOpen]));
 
   function toggle(i) {
@@ -40,6 +45,7 @@ export default function LineageView({ versions, onBack }) {
             version={v}
             index={i}
             isFinal={!!v.is_final}
+            noteAboutThis={noteFor(i)}
             expanded={open.has(i)}
             onToggle={() => toggle(i)}
           />

@@ -1,7 +1,12 @@
-// One version in a lineage. Collapsed, it's a summary row (version label, the
-// correction that produced it, a ★ if final). Expanded, it shows the full recipe.
-// The parent (LineageView) owns which rows are open.
-export default function VersionRow({ version, index, isFinal, expanded, onToggle }) {
+// One version in a lineage. Collapsed = summary row (label, the note the host
+// made ABOUT this version, ★ if favorite). Expanded = the full recipe, rendered
+// the same way as the Make view for visual consistency.
+//
+// `noteAboutThis` is the correction the host gave about THIS version (which
+// motivated the next one) — passed down from LineageView, which shifts each
+// child's stored correction onto its parent so the story reads: this version →
+// "what was wrong with it" → next version.
+export default function VersionRow({ version, index, isFinal, noteAboutThis, expanded, onToggle }) {
   const label = index === 0 ? 'Original' : `v${index + 1}`;
 
   return (
@@ -9,32 +14,43 @@ export default function VersionRow({ version, index, isFinal, expanded, onToggle
       <button className="version-summary" onClick={onToggle}>
         <span className="version-label">
           {label}
-          {isFinal && <span className="version-star"> ★ final</span>}
+          {isFinal && <span className="version-star"> ★ favorite</span>}
         </span>
-        {/* the correction that produced THIS version — the convergence story */}
-        {version.correction && (
-          <span className="version-correction">"{version.correction}"</span>
+        {noteAboutThis && (
+          <span className="version-correction">"{noteAboutThis}"</span>
         )}
         <span className="version-caret">{expanded ? '▾' : '▸'}</span>
       </button>
 
       {expanded && (
         <div className="version-body">
-          <ul className="recipe-ingredients">
-            {version.ingredients.map((i, idx) => (
-              <li key={idx}>
-                <span>{i.name}</span>
-                <span className="recipe-ingredient-amount">
-                  {formatAmount(i.amount)} {i.unit}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <section className="recipe-section">
+            <p className="section-label">Ingredients</p>
+            <ul className="recipe-ingredients">
+              {version.ingredients.map((i, idx) => (
+                <li key={idx}>
+                  <span>{i.name}</span>
+                  <span className="recipe-ingredient-amount">
+                    {formatAmount(i.amount)} {i.unit}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
           {version.garnish && (
-            <p className="recipe-body"><strong>Garnish:</strong> {version.garnish}</p>
+            <section className="recipe-section">
+              <p className="section-label">Garnish</p>
+              <p className="recipe-body">{version.garnish}</p>
+            </section>
           )}
-          {version.steps && <p className="recipe-body">{version.steps}</p>}
+
+          {version.steps && (
+            <section className="recipe-section">
+              <p className="section-label">Instructions</p>
+              <p className="recipe-body">{version.steps}</p>
+            </section>
+          )}
 
           <div className="recipe-footer">
             <span className="recipe-footer-facts">

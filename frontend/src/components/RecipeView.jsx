@@ -1,20 +1,21 @@
-// Renders a recipe (draft or poured). Layout, top to bottom:
+// Renders a recipe. Layout, top to bottom:
 //   title
 //   description (italic prose — always shown if present)
 //   attribution box ("A custom [Family] — because..." — generated drinks only)
-//   INGREDIENTS section
-//   GARNISH section
-//   INSTRUCTIONS section
+//   INGREDIENTS / GARNISH / INSTRUCTIONS sections
 //   footer: ABV · method · attempts
 //
-// Two action modes at the bottom, driven by which callbacks are passed:
-//   DRAFT  (onPour):    [Pour it] [Discard, try again]
-//   POURED (onRefine):  [Refine this drink] [Mark as final] [New drink]
-// A recipe with neither is display-only (no buttons).
+// Actions at the bottom depend on the mode (driven by which callbacks are passed):
+//   CLASSIC (read-only):  [Back]                       — nothing is saved
+//   GENERATED (saved):    [★ Favorite] [Refine this drink] [Start over]
+// Generated drinks are auto-saved when created, so there's no "pour" gate;
+// Favorite is a toggle available any time (no "mark final in the moment" trap).
 export default function RecipeView({
   recipe, attempts, pickedTemplate,
-  onPour, onDiscard, pouring,
-  onRefine, onMarkFinal, onNew, isFinal,
+  onBack,                       // classic: return home
+  onRefine, onStartOver,        // generated: iterate or abandon
+  onToggleFavorite, isFavorite, // generated: the ★ toggle
+  busy,
 }) {
   return (
     <article className="recipe">
@@ -67,34 +68,29 @@ export default function RecipeView({
         </span>
       </div>
 
-      {/* DRAFT actions */}
-      {onPour && (
+      {/* CLASSIC — read-only, just a way back */}
+      {onBack && (
         <div className="stack" style={{ marginTop: 'var(--sp-4)' }}>
-          <button className="button" onClick={onPour} disabled={pouring}>
-            {pouring ? 'Pouring…' : 'Pour it'}
-          </button>
-          {onDiscard && (
-            <button className="button secondary" onClick={onDiscard} disabled={pouring}>
-              Discard, try again
-            </button>
-          )}
+          <button className="button secondary" onClick={onBack}>← Back</button>
         </div>
       )}
 
-      {/* POURED actions */}
+      {/* GENERATED — favorite toggle, refine, start over */}
       {onRefine && (
         <div className="stack" style={{ marginTop: 'var(--sp-4)' }}>
-          {isFinal ? (
-            <p className="recipe-final-badge">★ Marked as final</p>
-          ) : (
-            <>
-              <button className="button" onClick={onRefine}>Refine this drink</button>
-              <button className="button secondary" onClick={onMarkFinal}>Mark as final</button>
-            </>
-          )}
-          {onNew && (
-            <button className="button secondary" onClick={onNew}>New drink</button>
-          )}
+          <button
+            className={`button ${isFavorite ? '' : 'secondary'}`}
+            onClick={onToggleFavorite}
+            disabled={busy}
+          >
+            {isFavorite ? '★ Favorite' : '☆ Favorite'}
+          </button>
+          <button className="button" onClick={onRefine} disabled={busy}>
+            Refine this drink
+          </button>
+          <button className="button secondary" onClick={onStartOver} disabled={busy}>
+            Start over
+          </button>
         </div>
       )}
     </article>

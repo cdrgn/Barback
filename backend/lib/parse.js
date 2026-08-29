@@ -21,9 +21,33 @@ function stripFences(text) {
 /**
  * Parse and validate an LLM generation response.
  * @param {string} raw  The model's raw text output.
- * @returns {object} A validated recipe: {name, method, template, ingredients, garnish, steps, description, balance_check, reasoning}
+ * @returns {object} A validated recipe: {name, method, template, ingredients, garnish, steps, description, reasoning}
  * @throws {Error} if the text isn't valid JSON or doesn't match the contract.
  */
+// Guard against model breakdown: runaway repetition loops (e.g. "balance balance
+// balance…") and absurdly long strings. Returns a cleaned string, or throws if it
+// looks broken so the retry loop can regenerate.
+function sanitizeText(value, field, { maxLen = 600 } = {}) {
+  if (typeof value !== 'string') return '';
+  const text = value.trim();
+  if (text.length > maxLen) {
+    throw new Error(`parseRecipe: ${field} is suspiciously long (${text.length} chars) — likely a model loop`);
+  }
+  // detect a single word repeated many times in a row
+  const words = text.split(/\s+/);
+  if (words.length >= 8) {
+    let run = 1, maxRun = 1;
+    for (let i = 1; i < words.length; i++) {
+      run = words[i].toLowerCase() === words[i - 1].toLowerCase() ? run + 1 : 1;
+      if (run > maxRun) maxRun = run;
+    }
+    if (maxRun >= 5) {
+      throw new Error(`parseRecipe: ${field} contains a repetition loop — regenerating`);
+    }
+  }
+  return text;
+}
+
 export function parseRecipe(raw) {
   if (typeof raw !== 'string' || !raw.trim()) {
     throw new Error('parseRecipe: empty or non-string response');
@@ -52,9 +76,8 @@ export function parseRecipe(raw) {
 
   // Optional display/quality fields (present per the contract, but tolerate absence).
   const garnish = typeof obj.garnish === 'string' ? obj.garnish : '';
-  const description = typeof obj.description === 'string' ? obj.description : '';
-  const balance_check = typeof obj.balance_check === 'string' ? obj.balance_check : '';
-  const reasoning = typeof obj.reasoning === 'string' ? obj.reasoning : '';
+  const description = sanitizeText(obj.description, 'description');
+  const reasoning = sanitizeText(obj.reasoning, 'reasoning');
 
   // Ingredients: must be a non-empty array of {name, amount, unit}.
   if (!Array.isArray(obj.ingredients) || obj.ingredients.length === 0) {
@@ -73,7 +96,7 @@ export function parseRecipe(raw) {
     return { name: ing.name, amount: ing.amount, unit: ing.unit };
   });
 
-  return { name, method, template, ingredients, garnish, steps, description, balance_check, reasoning };
+  return { name, method, template, ingredients, garnish, steps, description, reasoning };
 }
 
 function requireString(obj, key) {

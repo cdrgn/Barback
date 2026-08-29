@@ -286,11 +286,6 @@ button { font-family: inherit; }
   color: var(--text);
   margin: 0;
   line-height: 1.6;
-  text-transform: capitalize;
-}
-/* Garnish is short — don't capitalize the whole thing, only first letter */
-.recipe-section .recipe-body {
-  text-transform: none;
 }
 
 /* footer: three facts (ABV · method · attempts), gently separated */

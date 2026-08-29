@@ -10,14 +10,19 @@ import {
   fetchHistory, fetchLineage,
 } from './api/client.js';
 
-// Two top-level tabs: MAKE and HISTORY.
+// Two tabs: MAKE and HISTORY.
 //
-// MAKE moves through phases:
-//   'home' -> 'draft' -> 'poured' -> 'refining' -> 'draft'(child) -> ...
-//   The refine loop links each poured version to its parent (lineage).
+// MAKE has three views:
+//   'home'      — pick a classic (read-only) or describe a custom drink
+//   'classic'   — a classic's canonical recipe; read-only, just [Back]
+//   'generated' — a generated/refined drink; AUTO-SAVED to history on creation,
+//                 so there's no pour gate. Actions: [★ Favorite] [Refine] [Start over]
 //
-// HISTORY moves through:
-//   'list' (past drinks) -> 'lineage' (one drink's stacked versions).
+// The refine loop stays in 'generated': each refinement is a child version,
+// auto-saved, and becomes the current drink. Favorite (the is_final flag,
+// relabeled) is a toggle available any time — no "mark final in the moment" step.
+//
+// Classics are never written to the DB — they already exist as templates.
 export default function App() {
   const [tab, setTab] = useState('make');
   const [templates, setTemplates] = useState([]);
@@ -25,9 +30,10 @@ export default function App() {
   const [busy, setBusy] = useState(false);
 
   // MAKE state
-  const [phase, setPhase] = useState('home');
+  const [view, setView] = useState('home');     // home | classic | generated
   const [brief, setBrief] = useState('');
-  const [current, setCurrent] = useState(null);
+  const [current, setCurrent] = useState(null);  // the drink on screen
+  const [refining, setRefining] = useState(false);
   const [correction, setCorrection] = useState('');
 
   // HISTORY state
@@ -45,78 +51,76 @@ export default function App() {
     }
   }, [tab, historyPhase]);
 
-  // ===== MAKE handlers =====
+  // ===== MAKE =====
+
+  // Classic: read-only, nothing saved.
   function chooseClassic(t) {
     setError('');
-    setCurrent({ recipe: t.classic, source: 'classic', template: t });
-    setPhase('draft');
+    setCurrent({ recipe: t.classic });
+    setView('classic');
   }
 
+  // Generate → immediately save → land on the saved generated drink.
   async function handleGenerate() {
     setError(''); setBusy(true);
     try {
       const result = await generate(null, brief);
-      setCurrent({
-        recipe: result.recipe, source: 'generated',
-        pickedTemplate: result.pickedTemplate, attempts: result.attempts,
-      });
-      setPhase('draft');
-    } catch (e) { setError(e.message); } finally { setBusy(false); }
-  }
-
-  async function handlePour() {
-    setError(''); setBusy(true);
-    try {
-      const templateName = current.source === 'classic'
-        ? current.template.name
-        : current.pickedTemplate.name;
       const saved = await saveDrink({
-        recipe: current.recipe,
-        template: templateName,
-        source: current.source,
-        brief: current.source === 'generated' ? brief : null,
-        parentId: current.parentId ?? null,
-        correction: current.correction ?? null,
+        recipe: result.recipe,
+        template: result.pickedTemplate.name,
+        source: 'generated',
+        brief,
       });
-      setCurrent({ ...current, recipe: saved, id: saved.id, is_final: !!saved.is_final });
-      setPhase('poured');
+      setCurrent({
+        recipe: saved,                       // saved: has id, abv, ingredients
+        id: saved.id,
+        pickedTemplate: result.pickedTemplate,
+        attempts: result.attempts,
+        is_final: !!saved.is_final,
+      });
+      setView('generated');
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
-  function discardDraft() {
-    if (current?.parent) { setCurrent(current.parent); setPhase('poured'); }
-    else { resetToHome(); }
-  }
-
-  function startRefine() { setError(''); setCorrection(''); setPhase('refining'); }
+  // Refine the current drink → save child → land on it.
+  function startRefine() { setError(''); setCorrection(''); setRefining(true); }
 
   async function handleRefine() {
     setError(''); setBusy(true);
     try {
       const result = await refine(current.id, correction);
-      setCurrent({
-        recipe: result.recipe, source: 'generated', attempts: result.attempts,
-        pickedTemplate: current.pickedTemplate
-          ?? { name: current.recipe.template, display_name: current.template?.display_name },
-        parentId: current.id, parent: current, correction,
+      const saved = await saveDrink({
+        recipe: result.recipe,
+        template: current.pickedTemplate.name,
+        source: 'generated',
+        parentId: current.id,
+        correction,
       });
-      setPhase('draft');
+      setCurrent({
+        recipe: saved,
+        id: saved.id,
+        pickedTemplate: current.pickedTemplate,
+        attempts: result.attempts,
+        is_final: !!saved.is_final,
+      });
+      setRefining(false);
+      setView('generated');
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
-  async function handleMarkFinal() {
+  async function toggleFavorite() {
     setError(''); setBusy(true);
     try {
-      const updated = await markFinal(current.id, true);
+      const updated = await markFinal(current.id, !current.is_final);
       setCurrent({ ...current, is_final: !!updated.is_final });
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
-  function resetToHome() {
-    setCurrent(null); setBrief(''); setCorrection(''); setPhase('home');
+  function startOver() {
+    setCurrent(null); setBrief(''); setCorrection(''); setRefining(false); setView('home');
   }
 
-  // ===== HISTORY handlers =====
+  // ===== HISTORY =====
   async function openLineage(id) {
     setError('');
     try {
@@ -125,7 +129,6 @@ export default function App() {
       setHistoryPhase('lineage');
     } catch (e) { setError(e.message); }
   }
-
   function backToHistory() { setLineage(null); setHistoryPhase('list'); }
 
   // ===== render =====
@@ -138,14 +141,10 @@ export default function App() {
 
   const tabs = (
     <div className="tabs">
-      <button
-        className={`tab ${tab === 'make' ? 'active' : ''}`}
-        onClick={() => setTab('make')}
-      >Make</button>
-      <button
-        className={`tab ${tab === 'history' ? 'active' : ''}`}
-        onClick={() => { setTab('history'); setHistoryPhase('list'); }}
-      >History</button>
+      <button className={`tab ${tab === 'make' ? 'active' : ''}`}
+        onClick={() => setTab('make')}>Make</button>
+      <button className={`tab ${tab === 'history' ? 'active' : ''}`}
+        onClick={() => { setTab('history'); setHistoryPhase('list'); }}>History</button>
     </div>
   );
 
@@ -153,8 +152,7 @@ export default function App() {
   if (tab === 'history') {
     return (
       <div className="app">
-        {header}
-        {tabs}
+        {header}{tabs}
         {error && <div className="error">{error}</div>}
         {historyPhase === 'lineage' && lineage
           ? <LineageView versions={lineage} onBack={backToHistory} />
@@ -163,35 +161,40 @@ export default function App() {
     );
   }
 
-  // ---- MAKE tab: draft / poured / refining ----
-  if (phase === 'draft' || phase === 'poured' || phase === 'refining') {
-    const poured = phase === 'poured';
+  // ---- MAKE tab: classic (read-only) ----
+  if (view === 'classic') {
     return (
       <div className="app">
-        {header}
-        {tabs}
+        {header}{tabs}
         {error && <div className="error">{error}</div>}
+        <RecipeView recipe={current.recipe} onBack={startOver} />
+      </div>
+    );
+  }
 
+  // ---- MAKE tab: generated (auto-saved) ----
+  if (view === 'generated') {
+    return (
+      <div className="app">
+        {header}{tabs}
+        {error && <div className="error">{error}</div>}
         <RecipeView
           recipe={current.recipe}
           attempts={current.attempts}
           pickedTemplate={current.pickedTemplate}
-          onPour={phase === 'draft' ? handlePour : undefined}
-          onDiscard={phase === 'draft' ? discardDraft : undefined}
-          pouring={busy}
-          onRefine={poured ? startRefine : undefined}
-          onMarkFinal={poured ? handleMarkFinal : undefined}
-          onNew={poured ? resetToHome : undefined}
-          isFinal={current.is_final}
+          onRefine={startRefine}
+          onStartOver={startOver}
+          onToggleFavorite={toggleFavorite}
+          isFavorite={current.is_final}
+          busy={busy}
         />
-
-        {phase === 'refining' && (
+        {refining && (
           <div style={{ marginTop: 'var(--sp-4)' }}>
             <CorrectionInput
               correction={correction}
               onChange={setCorrection}
               onSubmit={handleRefine}
-              onCancel={() => setPhase('poured')}
+              onCancel={() => setRefining(false)}
               refining={busy}
             />
           </div>
@@ -203,8 +206,7 @@ export default function App() {
   // ---- MAKE tab: home ----
   return (
     <div className="app">
-      {header}
-      {tabs}
+      {header}{tabs}
       <div className="stack">
         {error && <div className="error">{error}</div>}
         <TemplatePicker templates={templates} selectedName={null} onSelect={chooseClassic} />
