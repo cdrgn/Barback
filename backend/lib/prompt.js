@@ -102,6 +102,10 @@ GUEST REQUEST:
 ${brief}
 ${feedbackBlock}
 Compose one balanced cocktail that fits the chosen template and the brief.
+The template's roles are the drink's BACKBONE, not a hard limit — add complementary
+ingredients when the style calls for it (e.g. soda water to lengthen a tall sour
+like a mojito, an aromatic accent, a float) as long as the core roles stay the
+foundation and every ingredient is from the allowed list.
 Before finalizing, account for the drink's structure: backbone, acid, sweetness,
 dilution, and any bitter/aromatic accent — confirm the proportions are balanced.
 
@@ -173,9 +177,11 @@ ${correction}
 ALLOWED INGREDIENTS (use ONLY these; do not invent others):
 ${formatIngredients(ingredients)}
 ${feedbackBlock}
-Produce the full improved recipe. Account for backbone, acid, sweetness, dilution,
-and any bitter/aromatic accent — confirm the proportions are still balanced after
-your change.
+Produce the full improved recipe. The template's roles are the backbone, but you
+may add complementary ingredients (a lengthener, an accent) when the style calls
+for it, using only allowed ingredients. Account for backbone, acid, sweetness,
+dilution, and any bitter/aromatic accent — confirm the proportions are still
+balanced after your change.
 
 Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
 {

@@ -4,7 +4,7 @@
 
 // Requests time out after this long so the UI can't spin forever on a stalled
 // backend/network. Generation is slow (15–30s), so the limit is generous.
-const REQUEST_TIMEOUT_MS = 45000;
+const REQUEST_TIMEOUT_MS = 300000; // currently 5 min for testing
 
 async function request(path, options = {}) {
   const controller = new AbortController();
