@@ -42,13 +42,6 @@ function formatIngredients(ingredients) {
     .join('\n');
 }
 
-// Render the template menu for the LLM to pick from. Each line carries:
-//   - snake_case name (the enum value it must return)
-//   - display name
-//   - flavor notes
-//   - a few named example drinks in that family — the key to correct picks,
-//     so "make me a mojito" picks daiquiri (mojito is a daiquiri variant),
-//     not whisky_highball (which only structurally resembles it via soda).
 // Render a template's `structure` as reference proportions: one line per role,
 // with an example ingredient and the verified amount — the balance guide.
 function formatStructure(structure) {
@@ -57,6 +50,13 @@ function formatStructure(structure) {
     .join('\n');
 }
 
+// Render the template menu for the LLM to pick from. Each line carries:
+//   - snake_case name (the enum value it must return)
+//   - display name
+//   - flavor notes
+//   - a few named example drinks in that family — the key to correct picks,
+//     so "make me a mojito" picks daiquiri (mojito is a daiquiri variant),
+//     not whisky_highball (which only structurally resembles it via soda).
 function formatTemplateMenu(templates) {
   return templates.map((t) => {
     const examples = t.examples?.length ? `\n    Examples: ${t.examples.join(', ')}.` : '';
@@ -116,9 +116,10 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
   ],
   "garnish": "string — free text",
   "steps": "string — preparation instructions",
-  "description": "ONE or two sentences describing this drink's flavor, for the host"
+  "description": "ONE or two short sentences describing this drink's flavor, for the host"
 }`;
 }
+
 
 // Render a poured drink's current recipe as readable lines — the starting point
 // a refinement adjusts from.
@@ -157,7 +158,7 @@ export function buildRefinePrompt({ template, currentRecipe, correction, ingredi
 
 This is a REMAKE, not an in-glass adjustment — the host will make a fresh drink
 from your recipe. Keep it in the SAME family (${template.display_name}); do not
-switch templates. Make the smallest change that addresses the host's note, keeping
+switch templates. Make change(s) that addresses the host's note, keeping
 everything else that already worked.
 
 THE DRINK SO FAR:
@@ -187,7 +188,7 @@ Respond with ONLY a JSON object (no prose, no markdown) in exactly this shape:
   ],
   "garnish": "string — free text",
   "steps": "string — preparation instructions",
-  "description": "ONE or two sentences describing this drink's flavor, for the host"
+  "description": "ONE or two short sentences describing this drink's flavor, for the host"
 }`;
 }
 

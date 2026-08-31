@@ -8,6 +8,11 @@ import { VALID_TEMPLATE_NAMES } from './prompt.js';
 const VALID_METHODS = new Set(['stirred', 'shaken', 'built', 'none']);
 const VALID_TEMPLATES = new Set(VALID_TEMPLATE_NAMES);
 
+// Ceiling for short free-text fields (reasoning, description). These are meant
+// to be a clause or a sentence or two — anything longer is a model breakdown,
+// not real content, so we reject it and let the loop regenerate.
+const SHORT_TEXT_MAX = 300;
+
 // Models sometimes wrap JSON in ```json ... ``` fences despite instructions.
 // Strip them before parsing.
 function stripFences(text) {
@@ -18,16 +23,10 @@ function stripFences(text) {
     .trim();
 }
 
-/**
- * Parse and validate an LLM generation response.
- * @param {string} raw  The model's raw text output.
- * @returns {object} A validated recipe: {name, method, template, ingredients, garnish, steps, description, reasoning}
- * @throws {Error} if the text isn't valid JSON or doesn't match the contract.
- */
 // Guard against model breakdown: runaway repetition loops (e.g. "balance balance
 // balance…") and absurdly long strings. Returns a cleaned string, or throws if it
 // looks broken so the retry loop can regenerate.
-function sanitizeText(value, field, { maxLen = 600 } = {}) {
+function sanitizeText(value, field, maxLen = SHORT_TEXT_MAX) {
   if (typeof value !== 'string') return '';
   const text = value.trim();
   if (text.length > maxLen) {
@@ -48,6 +47,12 @@ function sanitizeText(value, field, { maxLen = 600 } = {}) {
   return text;
 }
 
+/**
+ * Parse and validate an LLM generation response.
+ * @param {string} raw  The model's raw text output.
+ * @returns {object} A validated recipe: {name, method, template, ingredients, garnish, steps, description, reasoning}
+ * @throws {Error} if the text isn't valid JSON or doesn't match the contract.
+ */
 export function parseRecipe(raw) {
   if (typeof raw !== 'string' || !raw.trim()) {
     throw new Error('parseRecipe: empty or non-string response');
@@ -74,7 +79,7 @@ export function parseRecipe(raw) {
   }
   const steps = requireString(obj, 'steps');
 
-  // Optional display/quality fields (present per the contract, but tolerate absence).
+  // Optional display fields — same short-text guard for both.
   const garnish = typeof obj.garnish === 'string' ? obj.garnish : '';
   const description = sanitizeText(obj.description, 'description');
   const reasoning = sanitizeText(obj.reasoning, 'reasoning');

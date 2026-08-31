@@ -53,7 +53,8 @@ app.post('/api/generate', async (req, res) => {
       attempts,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);   // full detail in the server log, for debugging
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 
@@ -85,7 +86,8 @@ app.post('/api/drinks/:id/refine', async (req, res) => {
 
     res.json({ recipe: { ...recipe, abv: resolveRecipeAbv(db, recipe) }, attempts });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);   // full detail in the server log, for debugging
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 

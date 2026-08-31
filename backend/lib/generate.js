@@ -1,17 +1,17 @@
-// Orchestration: the full "generate a drink" flow, tying together the
-// pure/thin pieces — build the prompt, call the model, parse the response,
-// and validate-and-regenerate loop.
+// Orchestration: build the prompt, call the model, parse + validate, retry on a
+// bad recipe. Classic-pour is a separate DB-lookup path (no LLM), handled by the
+// frontend hitting POST /api/drinks directly.
 //
-// One flow only: host provides a brief, LLM picks the template and composes
-// the drink. Classic-pour is a separate DB-lookup path (no LLM), handled by
-// the frontend hitting POST /api/drinks directly.
+// ERROR MODEL (the whole thing in one sentence):
+//   Only a BAD RECIPE (parse or validation failure) is retried, with feedback.
+//   API failures (down, timeout, 429) throw straight out — the route logs the
+//   real error and shows the user a generic message.
 import { buildGenerationPrompt, buildRefinePrompt, VALID_TEMPLATE_NAMES } from './prompt.js';
 import { callLlm } from './llm.js';
 import { parseRecipe } from './parse.js';
 import { validateRecipe } from './validator.js';
 
-// Structural constraint: Gemini's responseSchema enum makes it impossible for
-// the model to emit a template value outside our 6 names (layer 2 of 3).
+// Gemini enforces this schema on the response (enum locks template to our 6).
 const RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
@@ -39,106 +39,75 @@ const RESPONSE_SCHEMA = {
 };
 
 /**
- * Generate a recipe that PASSES validation, retrying with feedback on failure.
- * The LLM picks which of the 6 templates fits the brief, then composes a drink
- * within it. After each attempt, we look up the picked template server-side and
- * hand it to the validator. Rejected attempts are re-generated with the
- * validator errors fed back into the next prompt.
- * @param {object} args
- * @param {Array<object>} args.templates    All 6 templates (with parsed structure + examples).
- * @param {Array<object>} args.ingredients  The allowed palette.
- * @param {string} args.brief               The host's flavor request.
- * @param {number} [args.maxAttempts=3]     How many tries before giving up.
+ * Generate a validated drink from a brief. The LLM picks the template.
+ * Retries up to maxAttempts on a bad recipe, feeding the errors back each time.
  * @returns {Promise<{recipe:object, template:object, attempts:number}>}
- * @throws if no attempt passes within maxAttempts.
+ * @throws on API failure, or if no valid drink after maxAttempts.
  */
 export async function generateValidatedDrink({ templates, ingredients, brief, maxAttempts = 3 }) {
   let feedback = '';
-  let lastErrors = [];
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // The model call is OUTSIDE the try below on purpose: an API failure
+    // (timeout/429/network) can't be fixed by retrying, so we let it throw out.
+    const raw = await callLlm(buildGenerationPrompt({ templates, ingredients, brief, feedback }), RESPONSE_SCHEMA);
+
+    // From here on, any problem is a BAD RECIPE — collect errors and retry.
+    const errors = [];
     let recipe;
     try {
-      const prompt = buildGenerationPrompt({ templates, ingredients, brief, feedback });
-      const raw = await callLlm(prompt, RESPONSE_SCHEMA);
       recipe = parseRecipe(raw);
     } catch (err) {
-      // Parse failure is also a reason to retry with feedback.
-      lastErrors = [err.message]; // array with the single error message
-      feedback = `- ${err.message}`; // string with single error message formatted
-      continue;
-    }
-
-    // Look up the template the LLM picked so the validator can check against it.
-    const template = templates.find((t) => t.name === recipe.template);
-    if (!template) {
-      // Shouldn't happen given the 3 layers, but retry if it does.
-      lastErrors = [`unknown template "${recipe.template}"`];
-      feedback = `- ${lastErrors[0]}`;
-      continue;
-    }
-
-    const { valid, errors } = validateRecipe(recipe, template, ingredients);
-    if (valid) return { recipe, template, attempts: attempt };
-
-    // There may be multiple errors from the validator.
-    lastErrors = errors;
-    feedback = errors.map((e) => `- ${e}`).join('\n');
-  }
-
-  throw new Error(
-    `generateValidatedDrink: no valid drink after ${maxAttempts} attempts. Last issues:\n${lastErrors.join('\n')}`
-  );
-}
-
-
-/**
- * Refine an already-poured drink from a correction note. Same validate-and-retry
- * loop as generateValidatedDrink, but the template is FIXED (inherited from the
- * parent drink) and the prompt starts from the current recipe rather than a blank
- * brief. Produces a fresh full recipe (a remake), so all balance/dilution rules
- * apply normally.
- * @param {object} args
- * @param {object} args.template       The parent's template (with parsed structure).
- * @param {object} args.currentRecipe  The poured drink {name, method, ingredients}.
- * @param {string} args.correction     What the host wants changed.
- * @param {Array<object>} args.ingredients  The allowed palette.
- * @param {number} [args.maxAttempts=3]
- * @returns {Promise<{recipe:object, attempts:number}>}
- * @throws if no attempt passes within maxAttempts.
- */
-export async function generateValidatedRefinement({ template, currentRecipe, correction, ingredients, maxAttempts = 3 }) {
-  let feedback = '';
-  let lastErrors = [];
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    let recipe;
-    try {
-      const prompt = buildRefinePrompt({ template, currentRecipe, correction, ingredients, feedback });
-      const raw = await callLlm(prompt, RESPONSE_SCHEMA);
-      recipe = parseRecipe(raw);
-    } catch (err) {
-      lastErrors = [err.message];
       feedback = `- ${err.message}`;
       continue;
     }
 
-    // The refine prompt fixes the template, but the model can still slip — if it
-    // returns a different family, reject and retry.
-    if (recipe.template !== template.name) {
-      lastErrors = [`refinement must stay in the ${template.name} family, got "${recipe.template}"`];
-      feedback = `- ${lastErrors[0]}`;
-      continue;
-    }
+    const template = templates.find((t) => t.name === recipe.template);
+    if (!template) errors.push(`unknown template "${recipe.template}"`);
+    else errors.push(...validateRecipe(recipe, template, ingredients).errors);
 
-    const { valid, errors } = validateRecipe(recipe, template, ingredients);
-    if (valid) return { recipe, attempts: attempt };
+    if (template && errors.length === 0) return { recipe, template, attempts: attempt };
 
-    lastErrors = errors;
     feedback = errors.map((e) => `- ${e}`).join('\n');
   }
 
-  throw new Error(
-    `generateValidatedRefinement: no valid drink after ${maxAttempts} attempts. Last issues:\n${lastErrors.join('\n')}`
-  );
+  throw new Error(`generateValidatedDrink: no valid drink after ${maxAttempts} attempts`);
+}
+
+/**
+ * Refine an already-made drink from a correction note. The template is FIXED
+ * (inherited from the parent); the model must stay in that family.
+ * @returns {Promise<{recipe:object, attempts:number}>}
+ * @throws on API failure, or if no valid drink after maxAttempts.
+ */
+export async function generateValidatedRefinement({ template, currentRecipe, correction, ingredients, maxAttempts = 3 }) {
+  let feedback = '';
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const raw = await callLlm(
+      buildRefinePrompt({ template, currentRecipe, correction, ingredients, feedback }),
+      RESPONSE_SCHEMA
+    );
+
+    let recipe;
+    try {
+      recipe = parseRecipe(raw);
+    } catch (err) {
+      feedback = `- ${err.message}`;
+      continue;
+    }
+
+    const errors = [];
+    if (recipe.template !== template.name) {
+      errors.push(`must stay in the ${template.name} family, got "${recipe.template}"`);
+    } else {
+      errors.push(...validateRecipe(recipe, template, ingredients).errors);
+    }
+
+    if (errors.length === 0) return { recipe, attempts: attempt };
+
+    feedback = errors.map((e) => `- ${e}`).join('\n');
+  }
+
+  throw new Error(`generateValidatedRefinement: no valid drink after ${maxAttempts} attempts`);
 }

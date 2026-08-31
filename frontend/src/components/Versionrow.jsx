@@ -1,13 +1,13 @@
-// One version in a lineage. Collapsed = summary row (label, the note the host
-// made ABOUT this version, ★ if favorite). Expanded = the full recipe, rendered
-// the same way as the Make view for visual consistency.
+// One version in a lineage. Collapsed = summary row (label, the version's own
+// origin note, ★ if favorite). Expanded = the full recipe, rendered the same
+// way as the Make view for visual consistency.
 //
-// `noteAboutThis` is the correction the host gave about THIS version (which
-// motivated the next one) — passed down from LineageView, which shifts each
-// child's stored correction onto its parent so the story reads: this version →
-// "what was wrong with it" → next version.
-export default function VersionRow({ version, index, isFinal, noteAboutThis, expanded, onToggle }) {
+// Origin note = how THIS version came to be:
+//   - root (index 0): the brief the host first asked for (`requested`)
+//   - refinement:     the correction that produced it (`correction`)
+export default function VersionRow({ version, index, isFinal, expanded, onToggle }) {
   const label = index === 0 ? 'Original' : `v${index + 1}`;
+  const note = index === 0 ? version.requested : version.correction;
 
   return (
     <div className={`version-row ${expanded ? 'expanded' : ''}`}>
@@ -16,8 +16,8 @@ export default function VersionRow({ version, index, isFinal, noteAboutThis, exp
           {label}
           {isFinal && <span className="version-star"> ★ favorite</span>}
         </span>
-        {noteAboutThis && (
-          <span className="version-correction">"{noteAboutThis}"</span>
+        {note && (
+          <span className="version-correction">"{note}"</span>
         )}
         <span className="version-caret">{expanded ? '▾' : '▸'}</span>
       </button>

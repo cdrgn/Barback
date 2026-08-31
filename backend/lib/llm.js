@@ -38,15 +38,30 @@ export async function callLlm(prompt, responseSchema = undefined) {
   // Optional structural constraint (e.g. enum for template names).
   if (responseSchema) config.responseSchema = responseSchema;
 
-  const response = await getClient().models.generateContent({
-    model: MODEL,
-    contents: prompt,
-    config,
-  });
+  // Guard against a hung API: race the request against a timeout so a stalled
+  // call rejects (and the retry loop can react) instead of waiting forever.
+  const response = await withTimeout(
+    getClient().models.generateContent({ model: MODEL, contents: prompt, config }),
+    LLM_TIMEOUT_MS,
+    'callLlm: model request timed out'
+  );
 
   const text = response.text;
   if (!text) throw new Error('callLlm: empty response from model');
   return text;
+}
+
+// How long to wait for a single model call before giving up (ms).
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS) || 60000; // changed to 60s from 20s for testing
+
+// Reject `promise` if it doesn't settle within `ms`. The timer is cleared on
+// settle so it never keeps the process alive.
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 export { MODEL };

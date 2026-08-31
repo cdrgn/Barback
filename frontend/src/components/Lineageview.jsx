@@ -5,13 +5,10 @@ import VersionRow from './VersionRow.jsx';
 // (or, if none, the latest) starts expanded; the rest collapsed, so the
 // convergence story reads top-to-bottom. Any row toggles independently.
 //
-// Correction placement: each version stores the correction that PRODUCED it
-// (so it lives on the child). But it reads better as "what the host said about
-// THIS version" — so we shift each version's correction onto its PARENT. The
-// last version has no note (it's the keeper, nothing was wrong with it yet).
+// Each version shows ITS OWN origin: the root shows the brief that started it
+// ("orange mojito"); each refinement shows the correction that produced it
+// ("make it more rich"). So the story reads: asked for X → changed to Y → v2.
 export default function LineageView({ versions, onBack }) {
-  // note about version i = correction stored on version i+1 (its child)
-  const noteFor = (i) => versions[i + 1]?.correction ?? null;
 
   const defaultOpen = (() => {
     const finalIdx = versions.findIndex((v) => v.is_final);
@@ -43,7 +40,6 @@ export default function LineageView({ versions, onBack }) {
             version={v}
             index={i}
             isFinal={!!v.is_final}
-            noteAboutThis={noteFor(i)}
             expanded={open.has(i)}
             onToggle={() => toggle(i)}
           />

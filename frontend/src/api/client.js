@@ -2,11 +2,28 @@
 // place so components don't duplicate it. Every function returns a Promise that
 // resolves with the response body or throws with a readable error.
 
+// Requests time out after this long so the UI can't spin forever on a stalled
+// backend/network. Generation is slow (15–30s), so the limit is generous.
+const REQUEST_TIMEOUT_MS = 45000;
+
 async function request(path, options = {}) {
-  const res = await fetch(path, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(path, {
+      ...options,
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `${res.status} ${res.statusText}`);
   return body;
