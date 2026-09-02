@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import VersionRow from './VersionRow.jsx';
+import RecipeHeader from './RecipeHeader.jsx';
 
 // The full lineage of a drink, stacked oldest → newest. The favorite version
 // (or, if none, the latest) starts expanded; the rest collapsed, so the
@@ -29,9 +30,7 @@ export default function LineageView({ versions, onBack }) {
 
   return (
     <div>
-      <button className="back-link" onClick={onBack}>← Return</button>
-
-      <h2 className="recipe-name" style={{ margin: '0 0 var(--sp-4)' }}>{title}</h2>
+      <RecipeHeader name={title} onBack={onBack} />
 
       <div className="lineage">
         {versions.map((v, i) => (

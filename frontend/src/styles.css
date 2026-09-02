@@ -292,7 +292,7 @@ button { font-family: inherit; }
   line-height: 1.6;
 }
 
-/* footer: three facts (ABV · method · attempts), gently separated */
+/* footer: ABV + method, gently separated */
 .recipe-footer-facts {
   display: flex;
   justify-content: space-between;
@@ -300,11 +300,6 @@ button { font-family: inherit; }
   flex-wrap: wrap;
   text-transform: capitalize;
 }
-/* .recipe-footer-facts > span:not(:last-child)::after {
-  content: '·';
-  margin-left: var(--sp-3);
-  color: var(--border);
-} */
 
 /* the "★ Marked as final" badge shown on a poured drink that's been keepered */
 .recipe-final-badge {
@@ -398,8 +393,6 @@ button { font-family: inherit; }
   overflow: hidden;
 }
 .version-row.expanded {
-  /* border-color: var(--border-hi);
-  box-shadow: 0 0 28px -12px var(--glow); */
   box-shadow: 0 0 44px -12px var(--glow), 0 8px 32px -12px rgba(0, 0, 0, 0.5);
 }
 .version-summary {
@@ -454,16 +447,27 @@ button { font-family: inherit; }
   box-shadow: inset 0 0 16px -6px var(--glow);
 }
 
-/* subtle inline back link (history lineage) — deliberately NOT a full button,
-   to sit quietly under the tab bar rather than competing with it */
+/* row above any drink card: back arrow (LEFT) + drink name, on one line.
+   Left is the universal spot for "back" — the arrow stays there. */
+.recipe-header-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.recipe-header-row .recipe-name {
+  margin: 0;   /* the row owns the spacing */
+}
+
+/* subtle inline back link — now an arrow sitting beside the drink title */
 .back-link {
   background: none;
   border: none;
   color: var(--gold-dim);
-  font-size: 0.9rem;
+  font-size: 1.4rem;   /* larger — it's an arrow beside a big serif title */
+  line-height: 1;
   cursor: pointer;
-  padding: var(--sp-2) 0;
-  margin: var(--sp-3) 0 var(--sp-4);
+  padding: 0;
   transition: color 0.2s;
 }
 .back-link:hover { color: var(--gold-bright); }

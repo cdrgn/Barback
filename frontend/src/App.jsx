@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import TemplatePicker from './components/TemplatePicker.jsx';
 import BriefInput from './components/BriefInput.jsx';
 import RecipeView from './components/RecipeView.jsx';
+import RecipeHeader from './components/RecipeHeader.jsx';
 import HistoryList from './components/HistoryList.jsx';
 import LineageView from './components/LineageView.jsx';
 import {
@@ -163,9 +164,8 @@ export default function App() {
     return (
       <div className="app">
         {header}{tabs}
-        <button className="back-link" onClick={goBack}>← Return</button>
         {error && <div className="error">{error}</div>}
-        <h2 className="recipe-name" style={{ margin: '0 0 var(--sp-4)' }}>{current.recipe.name}</h2>
+        <RecipeHeader name={current.recipe.name} onBack={goBack} />
         <RecipeView recipe={current.recipe} />
       </div>
     );
@@ -176,9 +176,8 @@ export default function App() {
     return (
       <div className="app">
         {header}{tabs}
-        <button className="back-link" onClick={goBack}>← Return</button>
         {error && <div className="error">{error}</div>}
-        <h2 className="recipe-name" style={{ margin: '0 0 var(--sp-4)' }}>{current.recipe.name}</h2>
+        <RecipeHeader name={current.recipe.name} onBack={goBack} />
         <RecipeView
           recipe={current.recipe}
           attempts={current.attempts}

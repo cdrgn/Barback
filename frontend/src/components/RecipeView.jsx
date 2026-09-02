@@ -20,7 +20,6 @@ export default function RecipeView({
 
   return (
     <article className="recipe">
-      {/* <h2 className="recipe-name">{recipe.name}</h2> */}
 
       {recipe.description && (
         <p className="recipe-description">{recipe.description}</p>
