@@ -8,7 +8,7 @@ export default function HistoryList({ drinks, onOpen }) {
 
   return (
     <div>
-      <p className="section-label">Poured drinks</p>
+      <p className="section-label">Created drinks</p>
       <ul className="history-list">
         {drinks.map((d) => (
           <li key={d.id}>

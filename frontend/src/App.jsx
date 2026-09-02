@@ -113,7 +113,7 @@ export default function App() {
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
-  function startOver() {
+  function goBack() {
     setCurrent(null); setBrief(''); setCorrection(''); setView('home');
   }
 
@@ -163,8 +163,10 @@ export default function App() {
     return (
       <div className="app">
         {header}{tabs}
+        <button className="back-link" onClick={goBack}>← Return</button>
         {error && <div className="error">{error}</div>}
-        <RecipeView recipe={current.recipe} onBack={startOver} />
+        <h2 className="recipe-name" style={{ margin: '0 0 var(--sp-4)' }}>{current.recipe.name}</h2>
+        <RecipeView recipe={current.recipe} />
       </div>
     );
   }
@@ -174,12 +176,13 @@ export default function App() {
     return (
       <div className="app">
         {header}{tabs}
+        <button className="back-link" onClick={goBack}>← Return</button>
         {error && <div className="error">{error}</div>}
+        <h2 className="recipe-name" style={{ margin: '0 0 var(--sp-4)' }}>{current.recipe.name}</h2>
         <RecipeView
           recipe={current.recipe}
           attempts={current.attempts}
           pickedTemplate={current.pickedTemplate}
-          onBack={startOver}
           onToggleFavorite={toggleFavorite}
           isFavorite={current.is_final}
           correction={correction}

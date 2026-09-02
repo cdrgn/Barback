@@ -201,6 +201,10 @@ button { font-family: inherit; }
   border-color: var(--gold);
   box-shadow: 0 0 24px -6px var(--glow);
 }
+.brief-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* ---- recipe view ---- */
 .recipe {
@@ -291,15 +295,16 @@ button { font-family: inherit; }
 /* footer: three facts (ABV · method · attempts), gently separated */
 .recipe-footer-facts {
   display: flex;
+  justify-content: space-between;
   gap: var(--sp-3);
   flex-wrap: wrap;
   text-transform: capitalize;
 }
-.recipe-footer-facts > span:not(:last-child)::after {
+/* .recipe-footer-facts > span:not(:last-child)::after {
   content: '·';
   margin-left: var(--sp-3);
   color: var(--border);
-}
+} */
 
 /* the "★ Marked as final" badge shown on a poured drink that's been keepered */
 .recipe-final-badge {
@@ -317,7 +322,7 @@ button { font-family: inherit; }
 .tabs {
   display: flex;
   gap: var(--sp-2);
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-4);
   border-bottom: 1px solid var(--border);
 }
 .tab {
@@ -384,7 +389,7 @@ button { font-family: inherit; }
 .lineage {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--sp-4);
 }
 .version-row {
   background: var(--surface);
@@ -393,8 +398,9 @@ button { font-family: inherit; }
   overflow: hidden;
 }
 .version-row.expanded {
-  border-color: var(--border-hi);
-  box-shadow: 0 0 28px -12px var(--glow);
+  /* border-color: var(--border-hi);
+  box-shadow: 0 0 28px -12px var(--glow); */
+  box-shadow: 0 0 44px -12px var(--glow), 0 8px 32px -12px rgba(0, 0, 0, 0.5);
 }
 .version-summary {
   width: 100%;
@@ -425,9 +431,10 @@ button { font-family: inherit; }
 }
 .version-caret { color: var(--gold-dim); }
 .version-body {
-  padding: 0 var(--sp-4) var(--sp-4);
+  padding: var(--sp-4);
   border-top: 1px solid var(--border);
 }
+.version-body .recipe-description { margin: 0 0 var(--sp-4); }
 .version-body .recipe-ingredients { margin-top: var(--sp-3); }
 
 /* animated loading dots (long generation waits) */
@@ -455,7 +462,9 @@ button { font-family: inherit; }
   color: var(--gold-dim);
   font-size: 0.9rem;
   cursor: pointer;
-  padding: var(--sp-1) 0;
+  padding: var(--sp-2) 0;
+  margin: var(--sp-3) 0 var(--sp-4);
+  margin-bottom: var(--sp-4);   /* breathing room before the card */
   transition: color 0.2s;
 }
 .back-link:hover { color: var(--gold-bright); }

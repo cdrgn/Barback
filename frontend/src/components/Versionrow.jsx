@@ -24,6 +24,9 @@ export default function VersionRow({ version, index, isFinal, expanded, onToggle
 
       {expanded && (
         <div className="version-body">
+          {version.description && (
+            <p className="recipe-description">{version.description}</p>
+          )}
           <section className="recipe-section">
             <p className="section-label">Ingredients</p>
             <ul className="recipe-ingredients">

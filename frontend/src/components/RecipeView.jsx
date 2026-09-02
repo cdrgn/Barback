@@ -4,7 +4,7 @@ import LoadingDots from './LoadingDots.jsx';
 //   title / description / attribution / INGREDIENTS / GARNISH / INSTRUCTIONS / footer
 //
 // Actions depend on mode (driven by which callbacks are passed):
-//   CLASSIC (read-only):  [Return]
+//   CLASSIC (read-only):  (no actions — navigation lives above the card)
 //   GENERATED (saved):    [★ Favorite]
 //                         [ what would you change? textarea ] [Refine it]
 //                         [Return]
@@ -12,7 +12,6 @@ import LoadingDots from './LoadingDots.jsx';
 // enables once there's text, so an empty box is simply inert.
 export default function RecipeView({
   recipe, attempts, pickedTemplate,
-  onBack,                          // classic OR generated: return home
   onToggleFavorite, isFavorite,    // generated: the ★ toggle
   correction, onCorrectionChange, onRefine, refining,  // generated: inline refine
   busy,
@@ -21,18 +20,18 @@ export default function RecipeView({
 
   return (
     <article className="recipe">
-      <h2 className="recipe-name">{recipe.name}</h2>
+      {/* <h2 className="recipe-name">{recipe.name}</h2> */}
 
       {recipe.description && (
         <p className="recipe-description">{recipe.description}</p>
       )}
 
-      {pickedTemplate && (
+      {/* {pickedTemplate && (
         <p className="recipe-attribution">
           A custom <strong>{pickedTemplate.display_name}</strong>
           {pickedTemplate.reasoning && ` — ${pickedTemplate.reasoning}`}
         </p>
-      )}
+      )} */}
 
       <section className="recipe-section">
         <p className="section-label">Ingredients</p>
@@ -66,16 +65,8 @@ export default function RecipeView({
         <span className="recipe-footer-facts">
           {recipe.abv != null && <span>ABV ~{recipe.abv}%</span>}
           {recipe.method && <span>{recipe.method}</span>}
-          {attempts != null && <span>{attempts} attempt{attempts === 1 ? '' : 's'}</span>}
         </span>
       </div>
-
-      {/* CLASSIC — read-only */}
-      {onBack && !generated && (
-        <div className="stack" style={{ marginTop: 'var(--sp-4)' }}>
-          <button className="button secondary" onClick={onBack}>← Return</button>
-        </div>
-      )}
 
       {/* GENERATED — favorite, inline refine, return */}
       {generated && (
@@ -107,10 +98,6 @@ export default function RecipeView({
               </button>
             </div>
           </div>
-
-          <button className="button secondary" onClick={onBack} disabled={busy}>
-            ← Return
-          </button>
         </div>
       )}
     </article>
