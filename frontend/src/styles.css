@@ -464,7 +464,6 @@ button { font-family: inherit; }
   cursor: pointer;
   padding: var(--sp-2) 0;
   margin: var(--sp-3) 0 var(--sp-4);
-  margin-bottom: var(--sp-4);   /* breathing room before the card */
   transition: color 0.2s;
 }
 .back-link:hover { color: var(--gold-bright); }
