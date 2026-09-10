@@ -1,6 +1,16 @@
 -- Cocktail Host Assistant — schema
 PRAGMA foreign_keys = ON;
 
+-- Users (Phase 2 — multi-user auth). Each person logs in with email + password
+-- and owns their own drinks (and, later, their own ingredient inventory).
+-- We store ONLY the bcrypt hash, never the raw password.
+CREATE TABLE IF NOT EXISTS users (
+  id             INTEGER PRIMARY KEY,
+  email          TEXT NOT NULL UNIQUE,               -- login identity, case-insensitive (we lowercase before storing)
+  password_hash  TEXT NOT NULL,                      -- bcrypt hash — never the raw password
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- The 6 Cocktail Codex structural families ("the grammar" every drink is built on).
 -- Each row's `structure` (JSON) merges two things into one: the roles + reference
 -- ratios the LLM generates within, AND the classic recipe (each role's example
