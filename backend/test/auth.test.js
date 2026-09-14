@@ -46,7 +46,7 @@ test('verifyToken throws on a tampered token', () => {
 
 test('verifyToken throws on a token signed with a different secret', () => {
   // simulate a forged token from someone who doesn't know our secret
-  process.env.JWT_SECRET = 'attacker-secret';
+  process.env.JWT_SECRET = 'attacker-secret'; // overwrite in-memory env var
   const forged = signToken(999);
   process.env.JWT_SECRET = 'test-secret-not-for-production';
   assert.throws(() => verifyToken(forged), 'a token signed with the wrong secret must be rejected');

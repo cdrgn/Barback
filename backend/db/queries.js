@@ -156,3 +156,21 @@ export function getLineage(db, id) {
   }
   return versions;
 }
+
+// ===== Users (Phase 2 auth) =====
+
+// Create a user. Email is lowercased by the caller before hashing/storing so
+// logins are case-insensitive. Throws if the email is already taken (the UNIQUE
+// constraint fires) — the route turns that into a friendly 409.
+export function createUser(db, { email, passwordHash }) {
+  const info = db.prepare(
+    'INSERT INTO users (email, password_hash) VALUES (?, ?)'
+  ).run(email, passwordHash);
+  return info.lastInsertRowid;
+}
+
+// Look up a user by email (for login). Returns the row (incl. password_hash) or
+// undefined. Caller compares the submitted password against password_hash.
+export function findUserByEmail(db, email) {
+  return db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+}

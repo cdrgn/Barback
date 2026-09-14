@@ -7,11 +7,68 @@ import { generateValidatedDrink, generateValidatedRefinement } from './lib/gener
 import {
   getTemplates, getIngredients, getDrink, getHistory, getLineage,
   saveDrink, templateToRecipe, resolveRecipeAbv,
+  createUser, findUserByEmail,
 } from './db/queries.js';
+import { hashPassword, verifyPassword, signToken } from './lib/auth.js';
 
 const app = express(); // create server
 app.use(express.json()); // middleware, changes JSON text to JS object and attaches to req.body
 const db = openDb();
+
+// A minimal email check — good enough to catch obvious typos. Real validation is
+// that login works; we don't need RFC-perfect email parsing.
+function looksLikeEmail(s) {
+  return typeof s === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+}
+
+// POST /api/register  body: { email, password }
+// Create an account and return a token so the user is logged in immediately.
+// Password rules: min 8 chars. Email is stored lowercased (case-insensitive login).
+app.post('/api/register', async (req, res) => {
+  try {
+    const { email, password } = req.body ?? {};
+    if (!looksLikeEmail(email)) return res.status(400).json({ error: 'a valid email is required' });
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'password must be at least 8 characters' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    // Reject duplicates with a clear 409 rather than a raw DB error.
+    if (findUserByEmail(db, normalizedEmail)) {
+      return res.status(409).json({ error: 'an account with that email already exists' });
+    }
+
+    const passwordHash = await hashPassword(password);
+    const userId = createUser(db, { email: normalizedEmail, passwordHash });
+    res.status(201).json({ token: signToken(userId), email: normalizedEmail });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
+// POST /api/login  body: { email, password }
+// Verify credentials and return a token. Deliberately vague error ("invalid email
+// or password") so we don't reveal WHICH was wrong — that would help attackers
+// enumerate valid emails.
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body ?? {};
+    if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
+
+    const user = findUserByEmail(db, String(email).trim().toLowerCase());
+    // Run verifyPassword even if user is missing? Not necessary here; a fast
+    // "no such user" is fine for a friends app. (Timing-attack hardening is a
+    // production nicety, deferred.)
+    const ok = user && await verifyPassword(password, user.password_hash);
+    if (!ok) return res.status(401).json({ error: 'invalid email or password' });
+
+    res.json({ token: signToken(user.id), email: user.email });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
 
 // GET /api/templates
 // Returns all 6 templates, each enriched with a classic property (canonical recipe, ready to pour).
