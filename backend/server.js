@@ -10,6 +10,7 @@ import {
   createUser, findUserByEmail,
 } from './db/queries.js';
 import { hashPassword, verifyPassword, signToken } from './lib/auth.js';
+import { requireAuth } from './middleware/requireAuth.js';
 
 const app = express(); // create server
 app.use(express.json()); // middleware, changes JSON text to JS object and attaches to req.body
@@ -70,6 +71,9 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// ---- Everything below requires a valid token. req.userId is set by requireAuth. ----
+app.use(requireAuth);
+
 // GET /api/templates
 // Returns all 6 templates, each enriched with a classic property (canonical recipe, ready to pour).
 // The classic property is also enhanced with an abv property.
@@ -126,7 +130,7 @@ app.post('/api/drinks/:id/refine', async (req, res) => {
     const { correction } = req.body ?? {};
     if (!correction) return res.status(400).json({ error: 'correction is required' });
 
-    const parent = getDrink(db, Number(req.params.id));
+    const parent = getDrink(db, Number(req.params.id), req.userId);
     if (!parent) return res.status(404).json({ error: 'drink not found' });
 
     // The parent stores its template name; look up the full template object.
@@ -155,8 +159,8 @@ app.post('/api/drinks', (req, res) => {
   try {
     const { recipe, template, source, brief, parentId, correction } = req.body ?? {};
     if (!recipe || !template) return res.status(400).json({ error: 'recipe and template are required' });
-    const id = saveDrink(db, { recipe, template, source, brief, parentId, correction });
-    res.status(201).json(getDrink(db, id));
+    const id = saveDrink(db, { recipe, template, source, brief, parentId, correction, userId: req.userId });
+    res.status(201).json(getDrink(db, id, req.userId));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -165,13 +169,13 @@ app.post('/api/drinks', (req, res) => {
 // GET /api/drinks
 // History list — roots only (one entry per drink), newest first. In-glass tweaks live under /lineage.
 app.get('/api/drinks', (req, res) => {
-  res.json(getHistory(db));
+  res.json(getHistory(db, req.userId));
 });
 
 // GET /api/drinks/:id
 // One drink version + its ingredients. 404 if not found.
 app.get('/api/drinks/:id', (req, res) => {
-  const drink = getDrink(db, Number(req.params.id));
+  const drink = getDrink(db, Number(req.params.id), req.userId);
   if (!drink) return res.status(404).json({ error: 'drink not found' });
   res.json(drink);
 });
@@ -179,21 +183,22 @@ app.get('/api/drinks/:id', (req, res) => {
 // GET /api/drinks/:id/lineage
 // A drink's full version history (root → latest), oldest first. Works from any version's id.
 app.get('/api/drinks/:id/lineage', (req, res) => {
-  const lineage = getLineage(db, Number(req.params.id));
+  const lineage = getLineage(db, Number(req.params.id), req.userId);
   if (!lineage) return res.status(404).json({ error: 'drink not found' });
   res.json(lineage);
 });
 
-// PATCH /api/drinks/:id  body: { is_final: true|false }
-// Updates a drink (currently only is_final — the host's "this one's the keeper" flag).
-// SQLite stores as 0/1 (no native boolean).
+// PATCH /api/drinks/:id  body: { is_favorite: true|false }
+// Toggle whether a version is one of the host's favorites (multiple allowed per
+// lineage). SQLite stores as 0/1. Scoped to the owner — you can only update your
+// own drinks (the WHERE user_id clause makes a mismatched id a no-op → 404).
 app.patch('/api/drinks/:id', (req, res) => {
-  const { is_final } = req.body ?? {};
-  if (is_final === undefined) return res.status(400).json({ error: 'nothing to update' });
-  const info = db.prepare('UPDATE drinks SET is_final = ? WHERE id = ?')
-    .run(is_final ? 1 : 0, Number(req.params.id));
+  const { is_favorite } = req.body ?? {};
+  if (is_favorite === undefined) return res.status(400).json({ error: 'nothing to update' });
+  const info = db.prepare('UPDATE drinks SET is_favorite = ? WHERE id = ? AND user_id = ?')
+    .run(is_favorite ? 1 : 0, Number(req.params.id), req.userId);
   if (info.changes === 0) return res.status(404).json({ error: 'drink not found' });
-  res.json(getDrink(db, Number(req.params.id)));
+  res.json(getDrink(db, Number(req.params.id), req.userId));
 });
 
 const PORT = process.env.PORT || 3001;

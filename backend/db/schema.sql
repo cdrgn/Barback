@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS drinks (
   garnish         TEXT,                                      -- free-text garnish label
   description     TEXT,                                      -- short host-facing description of the drink (from template for classics, from LLM for generated)
   abv             REAL,                                      -- computed at pour, per version
-  is_final        INTEGER NOT NULL DEFAULT 0,                -- 1 = dialed-in final version (end of convergence)
+  is_favorite     INTEGER NOT NULL DEFAULT 0,                -- 1 = a version the host starred as one they liked (multiple allowed per lineage)
+  user_id         INTEGER REFERENCES users(id),              -- owner of this drink (Phase 2 multi-user)
   created_at      TEXT DEFAULT (datetime('now'))
 );
 

@@ -16,12 +16,12 @@ export function resolveRecipeAbv(db, recipe) {
 // Write a poured drink (root or child) plus its ingredients. Returns
 // the new drink id. Wrapped in a transaction so the drink and its ingredients
 // commit together — never a drink with half its ingredients.
-export function saveDrink(db, { recipe, template, source = 'generated', brief = null, parentId = null, correction = null }) {
+export function saveDrink(db, { recipe, template, source = 'generated', brief = null, parentId = null, correction = null, userId }) {
   const abv = resolveRecipeAbv(db, recipe);
 
   const insertDrink = db.prepare(`
-    INSERT INTO drinks (parent_drink_id, name, template, source, correction, requested, method, steps, garnish, description, abv)
-    VALUES (@parent_drink_id, @name, @template, @source, @correction, @requested, @method, @steps, @garnish, @description, @abv)
+    INSERT INTO drinks (parent_drink_id, name, template, source, correction, requested, method, steps, garnish, description, abv, user_id)
+    VALUES (@parent_drink_id, @name, @template, @source, @correction, @requested, @method, @steps, @garnish, @description, @abv, @user_id)
   `);
   const getIngredientId = db.prepare('SELECT id FROM ingredients WHERE name = ?');
   const insertRecipeIngredient = db.prepare('INSERT INTO recipe_ingredients (drink_id, ingredient_id, amount, unit) VALUES (?, ?, ?, ?)');
@@ -39,6 +39,7 @@ export function saveDrink(db, { recipe, template, source = 'generated', brief = 
       garnish: recipe.garnish ?? null,
       description: recipe.description ?? null,
       abv,
+      user_id: userId,
     });
     const drinkId = info.lastInsertRowid; // get id of inserted row
     for (const ing of recipe.ingredients) {
@@ -53,8 +54,8 @@ export function saveDrink(db, { recipe, template, source = 'generated', brief = 
 }
 
 // One drink version with its ingredients attached.
-export function getDrink(db, id) {
-  const drink = db.prepare('SELECT * FROM drinks WHERE id = ?').get(id); // get drink row
+export function getDrink(db, id, userId) {
+  const drink = db.prepare('SELECT * FROM drinks WHERE id = ? AND user_id = ?').get(id, userId); // get drink row (only if owned)
   if (!drink) return null;
   drink.ingredients = db.prepare(`
     SELECT i.name, ri.amount, ri.unit, i.category
@@ -68,36 +69,36 @@ export function getDrink(db, id) {
 // History: the root drink of each lineage, newest first. Because refinements
 // are children, a lineage's "final" version is usually NOT the root — so we
 // walk each root's descendants to answer two things per lineage:
-//   has_final    — is ANY version in the lineage marked final?
+//   has_favorite  — is ANY version in the lineage starred as a favorite?
 //   version_count — how many versions total (root + refinements)?
 // This keeps the history row honest ("★" and "3 versions") without the client
 // having to fetch every lineage up front.
-export function getHistory(db) {
+export function getHistory(db, userId) {
   const roots = db.prepare(`
     SELECT id, name, template, source, abv, created_at
     FROM drinks
-    WHERE parent_drink_id IS NULL
+    WHERE parent_drink_id IS NULL AND user_id = ?
     ORDER BY created_at DESC
-  `).all();
+  `).all(userId);
 
   // For each root, walk its lineage counting versions and checking for a final.
-  const childrenOf = db.prepare('SELECT id, is_final FROM drinks WHERE parent_drink_id = ?');
+  const childrenOf = db.prepare('SELECT id, is_favorite FROM drinks WHERE parent_drink_id = ?');
   for (const root of roots) {
     let count = 0;
-    let hasFinal = false;
+    let hasFavorite = false;
     // breadth-first over the (linear, in phase 1) chain
-    let frontier = [{ id: root.id, is_final: db.prepare('SELECT is_final FROM drinks WHERE id = ?').get(root.id).is_final }];
+    let frontier = [{ id: root.id, is_favorite: db.prepare('SELECT is_favorite FROM drinks WHERE id = ?').get(root.id).is_favorite }];
     while (frontier.length) {
       const next = [];
       for (const node of frontier) {
         count += 1;
-        if (node.is_final) hasFinal = true;
+        if (node.is_favorite) hasFavorite = true;
         for (const child of childrenOf.all(node.id)) next.push(child);
       }
       frontier = next;
     }
     root.version_count = count;
-    root.has_final = hasFinal;
+    root.has_favorite = hasFavorite;
   }
   return roots;
 }
@@ -132,8 +133,8 @@ export function templateToRecipe(template) {
 // The full version lineage a drink belongs to: the root and all its descendants,
 // oldest first. Walks up to the root, then collects the chain down. Each version
 // includes its ingredients (via getDrink).
-export function getLineage(db, id) {
-  const start = db.prepare('SELECT id, parent_drink_id FROM drinks WHERE id = ?').get(id); // fetch given drink
+export function getLineage(db, id, userId) {
+  const start = db.prepare('SELECT id, parent_drink_id FROM drinks WHERE id = ? AND user_id = ?').get(id, userId); // fetch given drink (only if owned)
   if (!start) return null; // return null if given drink not found
 
   // 1. traverse up to root. stop when parent_drink_id is null
@@ -148,7 +149,7 @@ export function getLineage(db, id) {
   const versions = [];
   let currentId = rootId;
   while (currentId != null) {
-    versions.push(getDrink(db, currentId));
+    versions.push(getDrink(db, currentId, userId));
     const child = db.prepare(
       'SELECT id FROM drinks WHERE parent_drink_id = ? ORDER BY created_at ASC LIMIT 1'
     ).get(currentId);
