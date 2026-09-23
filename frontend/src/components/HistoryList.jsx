@@ -15,7 +15,7 @@ export default function HistoryList({ drinks, onOpen }) {
             <button className="history-row" onClick={() => onOpen(d.id)}>
               <span className="history-row-main">
                 <span className="history-row-name">{d.name}</span>
-                {d.has_final && <span className="history-row-star">★</span>}
+                {d.has_favorite && <span className="history-row-star">★</span>}
               </span>
               <span className="history-row-meta">
                 {formatDate(d.created_at)}

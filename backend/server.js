@@ -77,6 +77,7 @@ app.use(requireAuth);
 // GET /api/templates
 // Returns all 6 templates, each enriched with a classic property (canonical recipe, ready to pour).
 // The classic property is also enhanced with an abv property.
+// Note: getTemplates(db) is an array. map will run the callback on each item in the array, returning an enhanced template object
 app.get('/api/templates', (req, res) => {
   const templates = getTemplates(db).map((t) => {
     const classic = templateToRecipe(t);

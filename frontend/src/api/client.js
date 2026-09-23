@@ -1,20 +1,34 @@
 // One tiny wrapper per backend route. Keeps all fetch/JSON/error handling in one
 // place so components don't duplicate it. Every function returns a Promise that
 // resolves with the response body or throws with a readable error.
+import { getToken, clearToken } from './token.js';
 
 // Requests time out after this long so the UI can't spin forever on a stalled
 // backend/network. Generation is slow (15–30s), so the limit is generous.
 const REQUEST_TIMEOUT_MS = 300000; // currently 5 min for testing
 
+// Called when a request comes back 401 (missing/invalid/expired token). Set by
+// App on mount so client.js can bounce the user to login without importing React
+// state directly — keeps this file framework-agnostic.
+let onUnauthorized = () => {};
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn;
+}
+
 async function request(path, options = {}) {
-  const controller = new AbortController();
+  const controller = new AbortController(); // built-in JS API, allows cancellation of in-progress async op
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const token = getToken();
   let res;
   try {
     res = await fetch(path, {
       ...options,
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
     });
   } catch (err) {
     if (err.name === 'AbortError') {
@@ -24,10 +38,29 @@ async function request(path, options = {}) {
   } finally {
     clearTimeout(timer);
   }
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `${res.status} ${res.statusText}`);
+  const body = await res.json().catch(() => ({})); // if parsing JSON fails, treat body as empty obj {} to prevent crash
+  if (!res.ok) {
+    if (res.status === 401) {
+      // The token is gone/expired/invalid — forget it and let the app show login.
+      clearToken();
+      onUnauthorized();
+    }
+    throw new Error(body.error || `${res.status} ${res.statusText}`); // if body is empty obj, reading missing property safely returns undefined
+  }
   return body;
 }
+
+// ---- Auth (public — no token required, but register/login RETURN one) ----
+
+// POST /api/register -> { token, email }
+export const register = (email, password) =>
+  request('/api/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+
+// POST /api/login -> { token, email }
+export const login = (email, password) =>
+  request('/api/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+
+// ---- Everything below requires a token (server enforces this; we just send it) ----
 
 // GET /api/templates -> templates (each with a `classic` recipe attached)
 export const fetchTemplates   = () => request('/api/templates');
@@ -50,9 +83,9 @@ export const refine = (id, correction) =>
   request(`/api/drinks/${id}/refine`, { method: 'POST', body: JSON.stringify({ correction }) });
 
 // PATCH /api/drinks/:id -> the updated drink
-// Mark (or unmark) a drink as the dialed-in keeper.
-export const markFinal = (id, is_final = true) =>
-  request(`/api/drinks/${id}`, { method: 'PATCH', body: JSON.stringify({ is_final }) });
+// Toggle whether a version is one of the host's favorites (multiple allowed).
+export const markFavorite = (id, is_favorite = true) =>
+  request(`/api/drinks/${id}`, { method: 'PATCH', body: JSON.stringify({ is_favorite }) });
 
 // GET /api/drinks -> history list (roots only)
 export const fetchHistory = () => request('/api/drinks');

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import AuthScreen from './components/AuthScreen.jsx';
 import TemplatePicker from './components/TemplatePicker.jsx';
 import BriefInput from './components/BriefInput.jsx';
 import RecipeView from './components/RecipeView.jsx';
@@ -6,9 +7,10 @@ import RecipeHeader from './components/RecipeHeader.jsx';
 import HistoryList from './components/HistoryList.jsx';
 import LineageView from './components/LineageView.jsx';
 import {
-  fetchTemplates, generate, saveDrink, refine, markFinal,
-  fetchHistory, fetchLineage,
+  fetchTemplates, generate, saveDrink, refine, markFavorite,
+  fetchHistory, fetchLineage, setUnauthorizedHandler,
 } from './api/client.js';
+import { getToken, clearToken } from './api/token.js';
 
 // Two tabs: MAKE and HISTORY.
 //
@@ -19,36 +21,48 @@ import {
 //                 so there's no pour gate. Actions: [★ Favorite] [Refine] [Start over]
 //
 // The refine loop stays in 'generated': each refinement is a child version,
-// auto-saved, and becomes the current drink. Favorite (the is_final flag,
-// relabeled) is a toggle available any time — no "mark final in the moment" step.
+// auto-saved, and becomes the current drink. Favorite (the is_favorite flag) is
+// a toggle available any time; multiple versions can be favorited.
 //
 // Classics are never written to the DB — they already exist as templates.
 export default function App() {
-  const [tab, setTab] = useState('make');
+  // auth: is there a token? (null = logged out → show AuthScreen)
+  const [authed, setAuthed] = useState(() => !!getToken()); // converts to bool, true | false
+
+  const [tab, setTab] = useState('make'); // make | history
   const [templates, setTemplates] = useState([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(''); 
   const [busy, setBusy] = useState(false);
 
   // MAKE state
   const [view, setView] = useState('home');     // home | classic | generated
   const [brief, setBrief] = useState('');
-  const [current, setCurrent] = useState(null);  // the drink on screen
+  const [current, setCurrent] = useState(null);  // the drink on screen, null | object
   const [correction, setCorrection] = useState('');
 
   // HISTORY state
-  const [historyPhase, setHistoryPhase] = useState('list');
+  const [historyPhase, setHistoryPhase] = useState('list'); // list | lineage
   const [history, setHistory] = useState([]);
-  const [lineage, setLineage] = useState(null);
+  const [lineage, setLineage] = useState(null); // null | array
 
+  // When any request 401s, client.js clears the token and calls this — drop back
+  // to the login screen.
   useEffect(() => {
-    fetchTemplates().then(setTemplates).catch((e) => setError(e.message));
+    setUnauthorizedHandler(() => setAuthed(false));
   }, []);
 
+  // Load templates once we're logged in (not before — the route requires a token).
   useEffect(() => {
+    if (!authed) return;
+    fetchTemplates().then(setTemplates).catch((e) => setError(e.message));
+  }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
     if (tab === 'history' && historyPhase === 'list') {
       fetchHistory().then(setHistory).catch((e) => setError(e.message));
     }
-  }, [tab, historyPhase]);
+  }, [authed, tab, historyPhase]);
 
   // ===== MAKE =====
 
@@ -75,7 +89,7 @@ export default function App() {
         id: saved.id,
         pickedTemplate: result.pickedTemplate,
         attempts: result.attempts,
-        is_final: !!saved.is_final,
+        is_favorite: !!saved.is_favorite,
       });
       setView('generated');
     } catch (e) { setError(e.message); } finally { setBusy(false); }
@@ -99,7 +113,7 @@ export default function App() {
         id: saved.id,
         pickedTemplate: current.pickedTemplate,
         attempts: result.attempts,
-        is_final: !!saved.is_final,
+        is_favorite: !!saved.is_favorite,
       });
       setCorrection('');
       setView('generated');
@@ -109,13 +123,21 @@ export default function App() {
   async function toggleFavorite() {
     setError(''); setBusy(true);
     try {
-      const updated = await markFinal(current.id, !current.is_final);
-      setCurrent({ ...current, is_final: !!updated.is_final });
+      const updated = await markFavorite(current.id, !current.is_favorite);
+      setCurrent({ ...current, is_favorite: !!updated.is_favorite });
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
   function goBack() {
     setCurrent(null); setBrief(''); setCorrection(''); setView('home');
+  }
+
+  function logout() {
+    clearToken();
+    setAuthed(false);
+    // reset app state so the next user starts clean
+    setCurrent(null); setBrief(''); setCorrection(''); setView('home');
+    setTab('make'); setHistory([]); setLineage(null); setHistoryPhase('list');
   }
 
   // ===== HISTORY =====
@@ -130,10 +152,16 @@ export default function App() {
   function backToHistory() { setLineage(null); setHistoryPhase('list'); }
 
   // ===== render =====
+
+  // The gate: no token → show login/signup, nothing else.
+  if (!authed) {
+    return <AuthScreen onAuthed={() => setAuthed(true)} />;
+  }
   const header = (
     <header className="app-header">
       <h1 className="app-title">Barback</h1>
       <p className="app-subtitle">A hand at the bar.</p>
+      <button className="logout-link" onClick={logout}>Log out</button>
     </header>
   );
 
@@ -183,7 +211,7 @@ export default function App() {
           attempts={current.attempts}
           pickedTemplate={current.pickedTemplate}
           onToggleFavorite={toggleFavorite}
-          isFavorite={current.is_final}
+          isFavorite={current.is_favorite}
           correction={correction}
           onCorrectionChange={setCorrection}
           onRefine={handleRefine}

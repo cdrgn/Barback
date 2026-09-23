@@ -5,7 +5,7 @@
 // Origin note = how THIS version came to be:
 //   - root (index 0): the brief the host first asked for (`requested`)
 //   - refinement:     the correction that produced it (`correction`)
-export default function VersionRow({ version, index, isFinal, expanded, onToggle }) {
+export default function VersionRow({ version, index, isFavorite, expanded, onToggle }) {
   const label = index === 0 ? 'Original' : `v${index + 1}`;
   const note = index === 0 ? version.requested : version.correction;
 
@@ -14,7 +14,7 @@ export default function VersionRow({ version, index, isFinal, expanded, onToggle
       <button className="version-summary" onClick={onToggle}>
         <span className="version-label">
           {label}
-          {isFinal && <span className="version-star"> ★ favorite</span>}
+          {isFavorite && <span className="version-star"> ★ favorite</span>}
         </span>
         {note && (
           <span className="version-correction">"{note}"</span>

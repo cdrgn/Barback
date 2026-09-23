@@ -26,3 +26,6 @@ npm-debug.log*
 
 # checkpoint test
 try-generate.js
+
+clientCopy.js
+diag.mjs

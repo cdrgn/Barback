@@ -471,3 +471,54 @@ button { font-family: inherit; }
   transition: color 0.2s;
 }
 .back-link:hover { color: var(--gold-bright); }
+
+/* ---- auth screen ---- */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.auth-input {
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0 var(--sp-3);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  font-family: inherit;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.auth-input::placeholder { color: var(--text-muted); }
+.auth-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 24px -6px var(--glow);
+}
+.auth-toggle {
+  background: none;
+  border: none;
+  color: var(--gold-dim);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: var(--sp-2);
+  transition: color 0.2s;
+}
+.auth-toggle:hover { color: var(--gold-bright); }
+
+/* subtle log-out link in the header */
+.logout-link {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: none;
+  border: none;
+  color: var(--gold-dim);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: var(--sp-2);
+  transition: color 0.2s;
+}
+.logout-link:hover { color: var(--gold-bright); }
+.app-header { position: relative; }  /* anchor for the absolute logout link */
