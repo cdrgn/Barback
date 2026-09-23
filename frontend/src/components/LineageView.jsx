@@ -12,8 +12,10 @@ import RecipeHeader from './RecipeHeader.jsx';
 export default function LineageView({ versions, onBack }) {
 
   const defaultOpen = (() => {
-    const finalIdx = versions.findIndex((v) => v.is_favorite);
-    // const finalIdx = versions.findIndex((v) => v.is_favorite).lastIndexOf(true); // newest favorited version open
+    // const finalIdx = versions.findIndex((v) => v.is_favorite);
+    // Multiple versions can be favorited, so open the NEWEST one (the most
+    // recent favorite), not the first. findLastIndex scans from the end.
+    const finalIdx = versions.findLastIndex((v) => v.is_favorite);
     return finalIdx !== -1 ? finalIdx : versions.length - 1;
   })();
 

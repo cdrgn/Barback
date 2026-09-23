@@ -11,7 +11,10 @@ import { callLlm } from './llm.js';
 import { parseRecipe } from './parse.js';
 import { validateRecipe } from './validator.js';
 
-// Gemini enforces this schema on the response (enum locks template to our 6).
+// Response schema passed to the LLM. On Gemini this is enforced structurally
+// (the enum makes an invalid template impossible); on Anthropic it's ignored and
+// the prompt + parser do the work. Kept either way so swapping providers is a
+// one-file change (lib/llm.js).
 const RESPONSE_SCHEMA = {
   type: 'object',
   properties: {

@@ -5,7 +5,7 @@ import { getToken, clearToken } from './token.js';
 
 // Requests time out after this long so the UI can't spin forever on a stalled
 // backend/network. Generation is slow (15–30s), so the limit is generous.
-const REQUEST_TIMEOUT_MS = 300000; // currently 5 min for testing
+const REQUEST_TIMEOUT_MS = 60000; // 60s — timeout if not resolved within this time
 
 // Called when a request comes back 401 (missing/invalid/expired token). Set by
 // App on mount so client.js can bounce the user to login without importing React

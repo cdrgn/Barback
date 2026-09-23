@@ -3,8 +3,9 @@
 //
 // One generation flow: the host provides a flavor brief; the LLM picks the
 // best-fit template AND composes a drink within it, in one call. Template
-// membership is guarded at 3 layers — this prompt (instructs), the parser
-// (safety net), and Gemini's responseSchema enum (structural constraint).
+// membership is guarded by this prompt (instructs) and the parser (safety net),
+// plus a responseSchema enum when the provider supports it (Gemini does,
+// Anthropic ignores it — so the parser is the real guarantee).
 //
 // OUTPUT CONTRACT (what the model must return):
 //   { template, reasoning, name, method, ingredients:[{name,amount,unit}], garnish, steps, description }
