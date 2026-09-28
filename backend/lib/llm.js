@@ -58,7 +58,7 @@ export async function callLlm(prompt, responseSchema = undefined) {
 }
 
 // How long to wait for a single model call before giving up (ms).
-const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS) || 120000; // 2 min for testing
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS) || 45000; // 45s - timeout if LLM exceeds duration for any attempt
 
 // Reject `promise` if it doesn't settle within `ms`. Timer cleared on settle.
 function withTimeout(promise, ms, message) {

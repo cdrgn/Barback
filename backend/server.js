@@ -10,7 +10,7 @@ import {
   createUser, findUserByEmail,
 } from './db/queries.js';
 import { hashPassword, verifyPassword, signToken } from './lib/auth.js';
-import { requireAuth } from './middleware/requireAuth.js';
+import { makeRequireAuth } from './middleware/requireAuth.js';
 
 const app = express(); // create server
 app.use(express.json()); // middleware, changes JSON text to JS object and attaches to req.body
@@ -72,7 +72,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ---- Everything below requires a valid token. req.userId is set by requireAuth. ----
-app.use(requireAuth);
+app.use(makeRequireAuth);
 
 // GET /api/templates
 // Returns all 6 templates, each enriched with a classic property (canonical recipe, ready to pour).
