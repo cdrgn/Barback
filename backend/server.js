@@ -72,7 +72,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ---- Everything below requires a valid token. req.userId is set by requireAuth. ----
-app.use(makeRequireAuth);
+app.use(makeRequireAuth(db));
 
 // GET /api/templates
 // Returns all 6 templates, each enriched with a classic property (canonical recipe, ready to pour).
