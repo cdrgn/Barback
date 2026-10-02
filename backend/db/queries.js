@@ -2,12 +2,15 @@
 // logic stays testable with an in-memory DB. Takes a db handle as its first arg.
 import { calculateAbv } from '../lib/abv.js';
 
-// Compute a recipe's ABV by looking up each ingredient's abv from the palette.
-// Used both for un-poured drafts (to show ABV) and at pour time (to store it).
-export function resolveRecipeAbv(db, recipe) {
-  const getIngredientAbv = db.prepare('SELECT abv FROM ingredients WHERE name = ?');
+// Compute a recipe's ABV by looking up each ingredient's abv in THIS user's bar.
+// Used for un-poured drafts (to show ABV) and at pour time (to store it).
+// A recipe may also carry its own abv per ingredient (a saved drink's snapshot, or
+// a classic straight from its template) — that wins, since no lookup is needed.
+export function resolveRecipeAbv(db, recipe, userId) {
+  const getIngredientAbv = db.prepare('SELECT abv FROM ingredients WHERE name = ? AND user_id = ?');
   const ingredientsWithAbv = recipe.ingredients.map((i) => {
-    const row = getIngredientAbv.get(i.name);
+    if (typeof i.abv === 'number') return { amount: i.amount, unit: i.unit, abv: i.abv };
+    const row = getIngredientAbv.get(i.name, userId);
     return { amount: i.amount, unit: i.unit, abv: row ? row.abv : 0 };
   });
   return calculateAbv(ingredientsWithAbv, recipe.method).abv;
@@ -17,14 +20,17 @@ export function resolveRecipeAbv(db, recipe) {
 // the new drink id. Wrapped in a transaction so the drink and its ingredients
 // commit together — never a drink with half its ingredients.
 export function saveDrink(db, { recipe, template, source = 'generated', brief = null, parentId = null, correction = null, userId }) {
-  const abv = resolveRecipeAbv(db, recipe);
+  const abv = resolveRecipeAbv(db, recipe, userId);
 
   const insertDrink = db.prepare(`
     INSERT INTO drinks (parent_drink_id, name, template, source, correction, requested, method, steps, garnish, description, abv, user_id)
     VALUES (@parent_drink_id, @name, @template, @source, @correction, @requested, @method, @steps, @garnish, @description, @abv, @user_id)
   `);
-  const getIngredientId = db.prepare('SELECT id FROM ingredients WHERE name = ?');
-  const insertRecipeIngredient = db.prepare('INSERT INTO recipe_ingredients (drink_id, ingredient_id, amount, unit) VALUES (?, ?, ?, ?)');
+  // Look up what we're about to COPY into the drink, not something to link to.
+  const getIngredient = db.prepare('SELECT category, abv FROM ingredients WHERE name = ? AND user_id = ?');
+  const insertRecipeIngredient = db.prepare(
+    'INSERT INTO recipe_ingredients (drink_id, name, category, abv, amount, unit) VALUES (?, ?, ?, ?, ?, ?)'
+  );
 
   const tx = db.transaction(() => {
     const info = insertDrink.run({
@@ -43,9 +49,12 @@ export function saveDrink(db, { recipe, template, source = 'generated', brief = 
     });
     const drinkId = info.lastInsertRowid; // get id of inserted row
     for (const ing of recipe.ingredients) {
-      const row = getIngredientId.get(ing.name);
-      if (!row) throw new Error(`saveDrink: ingredient "${ing.name}" not in palette`);
-      insertRecipeIngredient.run(drinkId, row.id, ing.amount, ing.unit);
+      // A classic carries its own category/abv; anything else must be in this bar.
+      const row = (typeof ing.abv === 'number' && ing.category)
+        ? { category: ing.category, abv: ing.abv }
+        : getIngredient.get(ing.name, userId);
+      if (!row) throw new Error(`saveDrink: ingredient "${ing.name}" not in this bar`);
+      insertRecipeIngredient.run(drinkId, ing.name, row.category, row.abv, ing.amount, ing.unit);
     }
     return drinkId;
   });
@@ -57,11 +66,12 @@ export function saveDrink(db, { recipe, template, source = 'generated', brief = 
 export function getDrink(db, id, userId) {
   const drink = db.prepare('SELECT * FROM drinks WHERE id = ? AND user_id = ?').get(id, userId); // get drink row (only if owned)
   if (!drink) return null;
+  // No join: the drink carries its own copy, so editing or deleting an ingredient
+  // in the bar can never change or break a drink that was already made.
   drink.ingredients = db.prepare(`
-    SELECT i.name, ri.amount, ri.unit, i.category
-    FROM recipe_ingredients ri
-    JOIN ingredients i ON i.id = ri.ingredient_id
-    WHERE ri.drink_id = ?
+    SELECT name, category, abv, amount, unit
+    FROM recipe_ingredients
+    WHERE drink_id = ?
   `).all(id); // add ingredients property to drink row
   return drink;
 }
@@ -110,8 +120,68 @@ export function getTemplates(db) {
 }
 
 // The ingredient palette.
-export function getIngredients(db) {
-  return db.prepare('SELECT name, category, abv FROM ingredients ORDER BY category, name').all();
+// This user's bar. Generation passes inStockOnly so it can only use what they
+// actually have tonight; the Bar screen passes nothing, to show everything.
+export function getIngredients(db, userId, { inStockOnly = false } = {}) {
+  const where = inStockOnly ? 'WHERE user_id = ? AND in_stock = 1' : 'WHERE user_id = ?';
+  return db.prepare(
+    `SELECT id, name, category, abv, in_stock FROM ingredients ${where} ORDER BY category, name`
+  ).all(userId);
+}
+
+// ===== The bar (Phase 3) =====
+// Three distinct actions on an ingredient: in_stock toggles whether generation may
+// use it (the row and its abv survive), delete removes it for good. Deleting is only
+// safe because saved drinks hold their own copy.
+
+// Copy the shared defaults into a new user's bar at register time. From here on
+// they're that user's rows — editing one never touches anybody else's.
+export function stockDefaultsForUser(db, userId, defaults) {
+  const insert = db.prepare(
+    'INSERT OR IGNORE INTO ingredients (user_id, name, category, abv, in_stock) VALUES (?, ?, ?, ?, 1)'
+  );
+  const tx = db.transaction(() => {
+    for (const d of defaults) insert.run(userId, d.name, d.category, d.abv ?? 0);
+  });
+  tx();
+}
+
+// Add one of their own. Throws if that name is already in this bar — even when it's
+// switched off, since two rows named "gin" with different ABVs would be ambiguous.
+export function addIngredient(db, userId, { name, category, abv, inStock = true }) {
+  const exists = db.prepare('SELECT id FROM ingredients WHERE user_id = ? AND name = ?').get(userId, name);
+  if (exists) throw new Error(`addIngredient: "${name}" is already in your bar`);
+  const info = db.prepare(
+    'INSERT INTO ingredients (user_id, name, category, abv, in_stock) VALUES (?, ?, ?, ?, ?)'
+  ).run(userId, name, category, abv, inStock ? 1 : 0);
+  return getIngredientById(db, info.lastInsertRowid, userId);
+}
+
+// Change an ingredient's abv, category and/or stock state. Only the fields passed
+// are touched. Past drinks are unaffected — they kept their own copy.
+// Returns updated ingredient row on success, else null.
+export function updateIngredient(db, userId, id, { category, abv, inStock }) {
+  const sets = [];
+  const args = [];
+  if (category !== undefined) { sets.push('category = ?'); args.push(category); }
+  if (abv !== undefined)      { sets.push('abv = ?');      args.push(abv); }
+  if (inStock !== undefined)  { sets.push('in_stock = ?'); args.push(inStock ? 1 : 0); }
+  if (!sets.length) return getIngredientById(db, id, userId);
+
+  args.push(id, userId);
+  const info = db.prepare(`UPDATE ingredients SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`).run(...args);
+  return info.changes === 0 ? null : getIngredientById(db, id, userId);
+}
+
+// Remove it for good. Scoped to the owner, so one user can't delete another's row.
+export function deleteIngredient(db, userId, id) {
+  return db.prepare('DELETE FROM ingredients WHERE id = ? AND user_id = ?').run(id, userId).changes > 0;
+}
+
+// One ingredient, only if this user owns it.
+export function getIngredientById(db, id, userId) {
+  return db.prepare('SELECT id, name, category, abv, in_stock FROM ingredients WHERE id = ? AND user_id = ?')
+    .get(id, userId) ?? null;
 }
 
 // Derive a ready-to-pour classic recipe from a template's structure:

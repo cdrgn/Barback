@@ -7,25 +7,12 @@ import { INGREDIENTS } from '../data/ingredients.js';
 import { TEMPLATES } from '../data/templates.js';
 
 export function seedIngredients(db = openDb()) {
-  const upsert = db.prepare(`
-    INSERT INTO ingredients (name, category, abv)
-    VALUES (@name, @category, @abv)
-    ON CONFLICT(name) DO UPDATE SET
-      category = excluded.category,
-      abv      = excluded.abv
-  `);
-
-  // db.transaction(...) returns a new function wrapped in a db transaction:
-  // BEGIN -> ... -> COMMIT, or ROLLBACK on any error.
-  // So all rows commit together — never a half-seeded palette.
-  const seedAll = db.transaction((rows) => {
-    for (const row of rows) upsert.run(row);
-  });
-
-  seedAll(INGREDIENTS);
-  const count = db.prepare('SELECT COUNT(*) AS n FROM ingredients').get().n;
-  console.log(`Seeded ingredients. Palette size: ${count}`);
-  return count;
+  // Phase 3: ingredients are per-user, so there is nothing global to seed. The
+  // defaults in data/ingredients.js are now a SOURCE LIST, copied into each user's
+  // own bar when they register (see stockDefaultsForUser). Kept as a no-op so
+  // `npm run db:seed` still works and the intent is written down somewhere.
+  console.log(`Ingredient defaults ready: ${INGREDIENTS.length} (copied per user at register).`);
+  return INGREDIENTS.length;
 }
 
 export function seedTemplates(db = openDb()) {

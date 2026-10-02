@@ -2,17 +2,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
 import { readFileSync } from 'node:fs';
-import { seedIngredients, seedTemplates } from '../db/seed.js';
-import { saveDrink, getDrink, getHistory, getLineage, getTemplates, templateToRecipe, createUser } from '../db/queries.js';
+import { seedTemplates } from '../db/seed.js';
+import { INGREDIENTS } from '../data/ingredients.js';
+import { saveDrink, getDrink, getHistory, getLineage, getTemplates, templateToRecipe, createUser, stockDefaultsForUser } from '../db/queries.js';
 
 // Build a fresh in-memory DB with schema + seed for each test run.
 function makeDb() {
   const db = new Database(':memory:');
   db.pragma('foreign_keys = ON');
   db.exec(readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8'));
-  seedIngredients(db);
   seedTemplates(db);
   const userId = createUser(db, { email: 'test@example.com', passwordHash: 'x' });
+  stockDefaultsForUser(db, userId, INGREDIENTS); // Phase 3: the bar is per-user
   return { db, userId };
 }
 
@@ -54,7 +55,7 @@ test('history returns root drinks only, not in-glass children', () => {
 test('saveDrink rejects an ingredient not in the palette', () => {
   const { db, userId } = makeDb();
   const bad = { ...daiquiriRecipe, ingredients: [{ name: 'unicorn tears', amount: 1, unit: 'oz' }] };
-  assert.throws(() => saveDrink(db, { recipe: bad, template: 'daiquiri', userId }), /not in palette/);
+  assert.throws(() => saveDrink(db, { recipe: bad, template: 'daiquiri', userId }), /not in this bar/);
 });
 
 test('templateToRecipe derives the classic from structure', () => {

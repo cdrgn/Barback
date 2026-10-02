@@ -31,11 +31,17 @@ CREATE TABLE IF NOT EXISTS templates (
 
 -- Curated ingredient palette. `abv` is calculated, not inferred by LLM.
 -- `category` is the structural ROLE used by balance rules and the validator.
+-- Each user's own bar (Phase 3). Seeded with the 54 defaults when they register,
+-- then theirs to add to, edit, delete, or switch out of stock. Generation only
+-- ever sees rows where in_stock = 1.
 CREATE TABLE IF NOT EXISTS ingredients (
   id       INTEGER PRIMARY KEY,
-  name     TEXT NOT NULL UNIQUE,
-  category TEXT NOT NULL,   -- role: spirit,liqueur,fortified,citrus,sweetener,bitter,sparkling,aromatic
-  abv      REAL NOT NULL DEFAULT 0     -- percent: 40 for gin, 0 for lime juice
+  user_id  INTEGER NOT NULL REFERENCES users(id),
+  name     TEXT NOT NULL,
+  category TEXT NOT NULL,              -- role: spirit,liqueur,fortified,citrus,sweetener,bitter,sparkling,aromatic
+  abv      REAL NOT NULL DEFAULT 0,    -- percent: 40 for gin, 0 for lime juice
+  in_stock INTEGER NOT NULL DEFAULT 1, -- 0 = owned but currently out of stock; keeps its abv
+  UNIQUE (user_id, name)               -- one "gin" per bar; re-adding is rejected
 );
 
 -- Holds all drinks. A drink is one of two kinds, set by `source`:
@@ -69,10 +75,15 @@ CREATE TABLE IF NOT EXISTS drinks (
 
 -- Atomic ingredient amounts for one drink version (this is where ratios live).
 -- Every drink — classic or generated — gets its ingredients here via drink_id.
+-- A SNAPSHOT of what went into a drink, not a link to the bar. The name/category/
+-- abv are copied at save time, so editing or deleting an ingredient later can never
+-- rewrite or break a drink that was already made.
 CREATE TABLE IF NOT EXISTS recipe_ingredients (
   id            INTEGER PRIMARY KEY,
   drink_id      INTEGER NOT NULL REFERENCES drinks(id),
-  ingredient_id INTEGER NOT NULL REFERENCES ingredients(id),
+  name          TEXT NOT NULL,                              -- as it was when poured
+  category      TEXT NOT NULL,                              -- ditto
+  abv           REAL NOT NULL,                              -- ditto — what the abv was computed from
   amount        REAL NOT NULL,                              -- quantity in `unit`
   unit          TEXT NOT NULL                               -- 'oz','dash','barspoon','whole'
 );
